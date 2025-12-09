@@ -16,181 +16,176 @@ import org.springframework.data.domain.Sort;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
+import java.util.ArrayList;
 import java.util.List;
+
 @Service
 public class AnnouncementService {
 
-    private final AnnouncementRepository announcementRepo;
-    private final UserRepository userRepo;
+	private final AnnouncementRepository announcementRepo;
+	private final UserRepository userRepo;
 
-    private final String uploadDir = System.getProperty("user.dir") + "/uploads/announcements/";
+	private final String uploadDir = System.getProperty("user.dir") + "/uploads/announcements/";
 
-    public AnnouncementService(AnnouncementRepository announcementRepo, UserRepository userRepo) {
-        this.announcementRepo = announcementRepo;
-        this.userRepo = userRepo;
+	public AnnouncementService(AnnouncementRepository announcementRepo, UserRepository userRepo) {
+		this.announcementRepo = announcementRepo;
+		this.userRepo = userRepo;
 
-        // Tạo thư mục nếu chưa có
-        File dir = new File(uploadDir);
-        if (!dir.exists()) dir.mkdirs();
-    }
+		// Tạo thư mục nếu chưa có
+		File dir = new File(uploadDir);
+		if (!dir.exists())
+			dir.mkdirs();
+	}
 
-    // CREATE ANNOUNCEMENT + MULTIPLE ATTACHMENTS
-    public Announcement createAnnouncement(
-            CreateAnnouncementRequest req,
-            MultipartFile imageFile,
-            List<MultipartFile> attachmentFiles
-    ) throws IOException {
+	// CREATE ANNOUNCEMENT + MULTIPLE ATTACHMENTS
+	public Announcement createAnnouncement(CreateAnnouncementRequest req, MultipartFile imageFile,
+			List<MultipartFile> attachmentFiles) throws IOException {
 
-        User admin = userRepo.findById(req.getAdminId())
-                .orElseThrow(() -> new RuntimeException("Admin not found"));
+		User admin = userRepo.findById(req.getAdminId()).orElseThrow(() -> new RuntimeException("Admin not found"));
 
-        Announcement a = new Announcement();
-        a.setAdmin(admin);
-        a.setTitle(req.getTitle());
-        a.setContent(req.getContent());
+		Announcement a = new Announcement();
+		a.setAdmin(admin);
+		a.setTitle(req.getTitle());
+		a.setContent(req.getContent());
 
-        if (imageFile != null && !imageFile.isEmpty()) {
-            String fileName = saveFile(imageFile);
-            a.setImageURL("/uploads/announcements/" + fileName);
-        } else if (req.getImageURL() != null) {
-            a.setImageURL(req.getImageURL());
-        }
+		if (imageFile != null && !imageFile.isEmpty()) {
+			String fileName = saveFile(imageFile);
+			a.setImageURL("/uploads/announcements/" + fileName);
+		} else if (req.getImageURL() != null) {
+			a.setImageURL(req.getImageURL());
+		}
 
-        if (attachmentFiles != null && !attachmentFiles.isEmpty()) {
-            List<String> attachmentURLs = attachmentFiles.stream()
-                    .map(file -> {
-                        try {
-                            String fileName = saveFile(file);
-                            return "/uploads/announcements/" + fileName;
-                        } catch (IOException e) {
-                            throw new RuntimeException("Attachment upload failed");
-                        }
-                    })
-                    .toList();
+		if (attachmentFiles != null && !attachmentFiles.isEmpty()) {
+			List<String> attachmentURLs = attachmentFiles.stream().map(file -> {
+				try {
+					String fileName = saveFile(file);
+					return "/uploads/announcements/" + fileName;
+				} catch (IOException e) {
+					throw new RuntimeException("Attachment upload failed");
+				}
+			}).toList();
 
-            a.setAttachments(attachmentURLs);
-        }
+			a.setAttachments(attachmentURLs);
+		}
 
-        String status = req.getStatus() != null
-                ? req.getStatus().trim().toLowerCase()
-                : "active";
+		String status = req.getStatus() != null ? req.getStatus().trim().toLowerCase() : "active";
 
-        if (!status.equals("active") && !status.equals("inactive") && !status.equals("draft")) {
-            throw new RuntimeException("Invalid status. Valid values: active, inactive, draft");
-        }
-        a.setStatus(status);
+		if (!status.equals("active") && !status.equals("inactive") && !status.equals("draft")) {
+			throw new RuntimeException("Invalid status. Valid values: active, inactive, draft");
+		}
+		a.setStatus(status);
 
-        return announcementRepo.save(a);
-    }
+		return announcementRepo.save(a);
+	}
 
-    // UPDATE ANNOUNCEMENT + MULTIPLE ATTACHMENTS
-    public Announcement updateAnnouncement(
-            Long id,
-            UpdateAnnouncementRequest req,
-            MultipartFile imageFile,
-            List<MultipartFile> attachmentFiles
-    ) throws IOException {
+	// UPDATE ANNOUNCEMENT + MULTIPLE ATTACHMENTS
+	public Announcement updateAnnouncement(Long id, UpdateAnnouncementRequest req, MultipartFile imageFile,
+			List<MultipartFile> attachmentFiles) throws IOException {
 
-        Announcement a = announcementRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Announcement not found"));
+		Announcement a = announcementRepo.findById(id)
+				.orElseThrow(() -> new RuntimeException("Announcement not found"));
 
-        if (req.getTitle() != null) a.setTitle(req.getTitle());
-        if (req.getContent() != null) a.setContent(req.getContent());
+		if (req.getTitle() != null)
+			a.setTitle(req.getTitle());
+		if (req.getContent() != null)
+			a.setContent(req.getContent());
 
-        if (req.getStatus() != null) {
-            String newStatus = req.getStatus().trim().toLowerCase();
-            if (!newStatus.equals("active") && !newStatus.equals("inactive") && !newStatus.equals("draft")) {
-                throw new RuntimeException("Invalid status");
-            }
-            a.setStatus(newStatus);
-        }
+		// ----- STATUS -----
+		if (req.getStatus() != null) {
+			String newStatus = req.getStatus().trim().toLowerCase();
+			if (!newStatus.equals("active") && !newStatus.equals("inactive") && !newStatus.equals("draft")) {
+				throw new RuntimeException("Invalid status");
+			}
+			a.setStatus(newStatus);
+		}
 
-        if (imageFile != null && !imageFile.isEmpty()) {
-            deletePhysicalFile(a.getImageURL());
+		// ----- IMAGE -----
+		if (Boolean.TRUE.equals(req.getClearImage())) {
+			// Xóa file vật lý
+			deletePhysicalFile(a.getImageURL());
+			a.setImageURL(null);
+		} else if (imageFile != null && !imageFile.isEmpty()) {
+			deletePhysicalFile(a.getImageURL());
+			String newName = saveFile(imageFile);
+			a.setImageURL("/uploads/announcements/" + newName);
+		}
 
-            String newFile = saveFile(imageFile);
-            a.setImageURL("/uploads/announcements/" + newFile);
-        }
+		// ----- ATTACHMENTS -----
+		if (Boolean.TRUE.equals(req.getClearAttachments())) {
+			if (a.getAttachments() != null) {
+				for (String url : a.getAttachments())
+					deletePhysicalFile(url);
+			}
+			a.setAttachments(null);
+		} else if (attachmentFiles != null && !attachmentFiles.isEmpty()) {
 
-        if (attachmentFiles != null && !attachmentFiles.isEmpty()) {
+			// Giữ file cũ nếu có
+			List<String> updatedAttachments = a.getAttachments() != null ? new ArrayList<>(a.getAttachments())
+					: new ArrayList<>();
 
-            if (a.getAttachments() != null) {
-                for (String oldFileURL : a.getAttachments()) {
-                    deletePhysicalFile(oldFileURL);
-                }
-            }
+			for (MultipartFile file : attachmentFiles) {
+				String name = saveFile(file);
+				updatedAttachments.add("/uploads/announcements/" + name);
+			}
 
-            List<String> newAttachments = attachmentFiles.stream()
-                    .map(file -> {
-                        try {
-                            String fileName = saveFile(file);
-                            return "/uploads/announcements/" + fileName;
-                        } catch (IOException e) {
-                            throw new RuntimeException("Attachment update failed");
-                        }
-                    })
-                    .toList();
+			a.setAttachments(updatedAttachments);
+		}
 
-            a.setAttachments(newAttachments);
-        }
+		return announcementRepo.save(a);
+	}
 
-        return announcementRepo.save(a);
-    }
+	private String saveFile(MultipartFile file) throws IOException {
+		String original = file.getOriginalFilename();
+		String ext = original != null && original.contains(".") ? original.substring(original.lastIndexOf(".")) : "";
 
-    private String saveFile(MultipartFile file) throws IOException {
-        String original = file.getOriginalFilename();
-        String ext = original != null && original.contains(".")
-                ? original.substring(original.lastIndexOf("."))
-                : "";
+		String fileName = System.currentTimeMillis() + "-" + (int) (Math.random() * 1e9) + ext;
+		Path path = Paths.get(uploadDir + fileName);
 
-        String fileName = System.currentTimeMillis() + "-" + (int)(Math.random() * 1e9) + ext;
-        Path path = Paths.get(uploadDir + fileName);
+		Files.copy(file.getInputStream(), path, StandardCopyOption.REPLACE_EXISTING);
+		return fileName;
+	}
 
-        Files.copy(file.getInputStream(), path, StandardCopyOption.REPLACE_EXISTING);
-        return fileName;
-    }
+	private void deletePhysicalFile(String url) {
+		if (url == null || url.startsWith("http"))
+			return;
 
-    private void deletePhysicalFile(String url) {
-        if (url == null || url.startsWith("http")) return;
+		try {
+			String filename = Paths.get(url).getFileName().toString();
+			Path filePath = Paths.get(uploadDir, filename);
 
-        try {
-            String filename = Paths.get(url).getFileName().toString();
-            Path filePath = Paths.get(uploadDir, filename);
+			if (Files.exists(filePath))
+				Files.delete(filePath);
 
-            if (Files.exists(filePath)) Files.delete(filePath);
+		} catch (Exception e) {
+			System.err.println("Không thể xóa file: " + e.getMessage());
+		}
+	}
 
-        } catch (Exception e) {
-            System.err.println("Không thể xóa file: " + e.getMessage());
-        }
-    }
+	public Page<Announcement> getAnnouncements(int page, int size) {
+		Pageable pageable = PageRequest.of(page, size, Sort.by("updatedAt").descending());
+		return announcementRepo.findAll(pageable);
 
+	}
 
-    public Page<Announcement> getAnnouncements(int page, int size) {
-    	Pageable pageable = PageRequest.of(page, size, Sort.by("updatedAt").descending());
-    	return announcementRepo.findAll(pageable);
+	public Announcement getById(Long id) {
+		return announcementRepo.findById(id).orElseThrow(() -> new RuntimeException("Announcement not found"));
+	}
 
-    }
+	public void deleteAnnouncement(Long id) {
+		Announcement a = getById(id);
 
-    public Announcement getById(Long id) {
-        return announcementRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Announcement not found"));
-    }
+		deletePhysicalFile(a.getImageURL());
 
-    public void deleteAnnouncement(Long id) {
-        Announcement a = getById(id);
+		if (a.getAttachments() != null) {
+			for (String url : a.getAttachments()) {
+				deletePhysicalFile(url);
+			}
+		}
 
-        deletePhysicalFile(a.getImageURL());
+		announcementRepo.deleteById(id);
+	}
 
-        if (a.getAttachments() != null) {
-            for (String url : a.getAttachments()) {
-                deletePhysicalFile(url);
-            }
-        }
-
-        announcementRepo.deleteById(id);
-    }
-
-    public List<Announcement> getAll() {
-        return announcementRepo.findAll();
-    }
+	public List<Announcement> getAll() {
+		return announcementRepo.findAll();
+	}
 }

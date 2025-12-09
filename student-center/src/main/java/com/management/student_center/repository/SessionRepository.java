@@ -1,5 +1,6 @@
 package com.management.student_center.repository;
 
+import com.management.student_center.dto.RoomScheduleDTO;
 import com.management.student_center.entity.Room;
 import com.management.student_center.entity.Session;
 import com.management.student_center.entity.Subject;
@@ -108,4 +109,53 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
             @Param("excludeId") Long excludeId
     );
 
+    
+ // Query thay thế cho đoạn logic phức tạp trong Node.js:
+    // Session status='completed', Date between range, TeacherAttendance status='present'
+    @Query("SELECT s FROM Session s " +
+           "JOIN s.teacherAttendances ta " +
+           "WHERE s.subject.id = :subjectId " +
+           "AND s.status = 'completed' " +
+           "AND s.sessionDate BETWEEN :startDate AND :endDate " +
+           "AND ta.teacher.id = :teacherId " +
+           "AND ta.status = 'present'")
+    List<Session> findValidSessionsForSalary(
+            @Param("teacherId") Long teacherId,
+            @Param("subjectId") Long subjectId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+    
+ // lấy các Session của phòng trong khoảng ngày
+    @Query("SELECT new com.management.student_center.dto.RoomScheduleDTO(" +
+            "r.id, r.name, r.seatCapacity, " +
+            "ss.id, s.name, ss.dayOfWeek, ss.startTime, ss.endTime, " +
+            "ses.id, ses.sessionDate, ses.startTime, ses.endTime, ses.status) " +
+            "FROM Session ses " +
+            "JOIN ses.room r " +
+            "JOIN ses.schedule ss " +
+            "JOIN ses.subject s " +
+            "WHERE r.id = :roomId " +
+            "AND ses.sessionDate BETWEEN :startDate AND :endDate " +
+            "ORDER BY ses.sessionDate, ses.startTime")
+    List<RoomScheduleDTO> findRoomSchedule(
+            @Param("roomId") Long roomId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+    
+    @Query("""
+            SELECT s FROM Session s
+            WHERE s.subject.id IN (
+                SELECT ts.subject.id FROM TeacherSubject ts
+                WHERE ts.teacher.id = :teacherId
+            )
+            AND s.sessionDate BETWEEN :startDate AND :endDate
+            ORDER BY s.sessionDate ASC, s.startTime ASC
+        """)
+        List<Session> findTeacherSessionsInRange(
+                @Param("teacherId") Long teacherId,
+                @Param("startDate") LocalDate startDate,
+                @Param("endDate") LocalDate endDate
+        );
 }

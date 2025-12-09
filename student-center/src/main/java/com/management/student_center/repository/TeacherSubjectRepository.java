@@ -14,4 +14,11 @@ public interface TeacherSubjectRepository extends JpaRepository<TeacherSubject, 
 
     // Xoá TeacherSubject theo subjectId
     void deleteBySubjectId(Long subjectId);
+    
+    
+ // Tìm theo cặp teacherId và subjectId để check trùng
+    Optional<TeacherSubject> findByTeacherIdAndSubjectId(Long teacherId, Long subjectId);
+
+    // Kiểm tra tồn tại
+    boolean existsByTeacherIdAndSubjectId(Long teacherId, Long subjectId);
 }

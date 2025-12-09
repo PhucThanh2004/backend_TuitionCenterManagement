@@ -8,6 +8,11 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.http.HttpMethod;
 import org.springframework.web.cors.CorsConfigurationSource;
 
+
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+
 @Configuration
 public class SecurityConfig {
 
@@ -19,6 +24,12 @@ public class SecurityConfig {
         this.corsConfigurationSource = corsConfigurationSource;
     }
 
+    
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+    
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         System.out.println("=== SecurityConfig === Configuring security filter chain");
@@ -35,10 +46,10 @@ public class SecurityConfig {
             .requestMatchers("/v1/api/reset-password").permitAll()
             .requestMatchers("/v1/api/subjects/**").permitAll()
             .requestMatchers("/v1/api/subjects").permitAll()
-            .requestMatchers("/v1/api/teachers/basic").permitAll()
+            .requestMatchers("/v1/api/teachers/**").permitAll()
             .requestMatchers("/v1/api/session/**").permitAll()
             .requestMatchers("/v1/api/schedule/**").permitAll()
-            .requestMatchers("/v1/api/rooms").permitAll()
+            .requestMatchers("/v1/api/rooms/**").permitAll()
             .requestMatchers("/v1/api/subject-schedules").permitAll()
             .requestMatchers("/v1/api/subject-students").permitAll()
             .requestMatchers("/v1/api/subject-students/**").permitAll()
@@ -51,6 +62,31 @@ public class SecurityConfig {
             .requestMatchers("/v1/api/by-assignment/**").permitAll()
             .requestMatchers("/v1/api/assign/update/**").permitAll()
             .requestMatchers("/v1/api/announcements/**").permitAll()
+            
+            
+
+            .requestMatchers(HttpMethod.GET, "/v1/api/teachers").permitAll()
+            .requestMatchers(HttpMethod.POST, "/v1/api/teachers").permitAll()
+            .requestMatchers(HttpMethod.PUT, "/v1/api/teachers/**").permitAll()
+            .requestMatchers(HttpMethod.DELETE, "/v1/api/teachers/**").permitAll()
+            .requestMatchers(HttpMethod.POST, "/v1/api/teachers/delete-multiple").permitAll()
+            .requestMatchers(HttpMethod.GET, "/v1/api/teachers/export").permitAll()
+            
+            .requestMatchers(HttpMethod.GET, "/v1/api/students").permitAll()
+            .requestMatchers(HttpMethod.GET, "/v1/api/students/**").permitAll() // Get by ID
+            .requestMatchers(HttpMethod.POST, "/v1/api/students").permitAll()
+            .requestMatchers(HttpMethod.PUT, "/v1/api/students/**").permitAll()
+            .requestMatchers(HttpMethod.DELETE, "/v1/api/students/**").permitAll()
+            .requestMatchers(HttpMethod.POST, "/v1/api/students/delete-multiple").permitAll()
+            .requestMatchers(HttpMethod.GET, "/v1/api/students/export").permitAll()
+            
+            // Teacher Subject (Thỏa thuận lương)
+            .requestMatchers("/v1/api/teacher-subjects/**").permitAll()
+            
+            // === THÊM DÒNG NÀY CHO TEACHER PAYMENT (Thanh toán lương) ===
+            .requestMatchers("/v1/api/payments/**").permitAll()
+            
+            
             .anyRequest().authenticated()
         );
 
