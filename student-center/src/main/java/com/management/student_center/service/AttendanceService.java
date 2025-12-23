@@ -1,12 +1,15 @@
 package com.management.student_center.service;
 
 import com.management.student_center.dto.AttendanceResponseDTO;
+import com.management.student_center.dto.AttendanceStudentDTO;
 import com.management.student_center.entity.*;
 import com.management.student_center.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class AttendanceService {
@@ -27,6 +30,27 @@ public class AttendanceService {
         this.attendanceStudentRepository = attendanceStudentRepository;
         this.studentRepository = studentRepository;
     }
+    
+    public List<AttendanceStudentDTO> getAbsentOrLateStudentsInDateRange(LocalDate startDate, LocalDate endDate) {
+        List<AttendanceStudent> records = attendanceStudentRepository.findAbsentOrLateBetweenDates(startDate, endDate);
+
+        // Map sang DTO có thêm thông tin lớp học
+        return records.stream()
+                .map(a -> new AttendanceStudentDTO(
+                        a.getStudent().getId(),
+                        a.getStudent().getUserInfo().getFullName(),
+                        a.getStudent().getUserInfo().getEmail(),
+                        a.getStudent().getGrade(),
+                        a.getStudent().getSchoolName(),
+                        a.getStatus(),
+                        a.getNote(),
+                        a.getSession().getSessionDate(),
+                        a.getSession().getSubject().getId(),
+                        a.getSession().getSubject().getName()
+                ))
+                .collect(Collectors.toList());
+    }
+    
 
     // Lấy danh sách điểm danh
     public AttendanceResponseDTO getAttendanceBySubject(Long subjectId) {

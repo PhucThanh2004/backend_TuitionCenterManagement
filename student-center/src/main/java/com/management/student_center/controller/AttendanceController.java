@@ -1,10 +1,15 @@
 package com.management.student_center.controller;
 
 import com.management.student_center.dto.AttendanceResponseDTO;
+import com.management.student_center.dto.AttendanceStudentDTO;
+import com.management.student_center.entity.Student;
 import com.management.student_center.service.AttendanceService;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,6 +22,15 @@ public class AttendanceController {
     public AttendanceController(AttendanceService attendanceService) {
         this.attendanceService = attendanceService;
     }
+    
+    @GetMapping("/attendance/absent-or-late")
+    public List<AttendanceStudentDTO> getAbsentOrLateStudents(
+            @RequestParam("startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam("endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+
+        return attendanceService.getAbsentOrLateStudentsInDateRange(startDate, endDate);
+    }
+
 
     @GetMapping("/subject/{subjectId}/attendance")
     public ResponseEntity<?> getAttendance(@PathVariable Long subjectId) {

@@ -1,16 +1,22 @@
 package com.management.student_center.service;
 
 import com.management.student_center.dto.*;
+import com.management.student_center.entity.StudentTuitionDetail;
 import com.management.student_center.entity.Subject;
 import com.management.student_center.repository.SubjectRepository;
+import com.management.student_center.repository.TeacherPaymentDetailRepository;
+import com.management.student_center.repository.TeacherPaymentRepository;
 import com.management.student_center.repository.TeacherRepository;
 import com.management.student_center.repository.TeacherSubjectRepository;
 import com.management.student_center.repository.StudentSubjectRepository;
+import com.management.student_center.repository.StudentTuitionDetailRepository;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.management.student_center.entity.Teacher;
+import com.management.student_center.entity.TeacherPayment;
 import com.management.student_center.entity.TeacherSubject;
 import java.math.BigDecimal;
 import org.springframework.web.multipart.MultipartFile;
@@ -33,6 +39,13 @@ public class SubjectService {
 
 	@Autowired
 	private TeacherRepository teacherRepository;
+	
+	@Autowired
+	private TeacherPaymentDetailRepository teacherPaymentDetailRepository;
+
+	@Autowired
+	private StudentTuitionDetailRepository studentTuitionDetailRepository;
+
 
 	public Map<String, Object> getSubjectsByUserId(int page, int limit, String status, Long userId) {
 
@@ -169,18 +182,35 @@ public class SubjectService {
 	// ------------------- DELETE SUBJECT -------------------
 	@Transactional
 	public void deleteSubject(Long id) {
-		Subject subject = subjectRepository.findById(id)
-				.orElseThrow(() -> new RuntimeException("Không tìm thấy môn học"));
 
-		// Xóa các TeacherSubject liên quan
-		teacherSubjectRepository.deleteBySubjectId(id);
+	    Subject subject = subjectRepository.findById(id)
+	            .orElseThrow(() -> new RuntimeException("Không tìm thấy môn học"));
 
-		// Xóa các StudentSubject liên quan
-		studentSubjectRepository.deleteBySubjectId(id);
+	    // 1Kiểm tra nợ lương giáo viên
+	    long unpaidTeacherSalary =
+	            teacherPaymentDetailRepository.countUnpaidBySubject(id);
 
-		// Xóa môn học
-		subjectRepository.delete(subject);
+	    if (unpaidTeacherSalary > 0) {
+	        throw new IllegalStateException("TEACHER_UNPAID");
+	    }
+
+	    // 2Kiểm tra học phí học sinh
+	    long unpaidStudentTuition =
+	            studentTuitionDetailRepository.countUnpaidBySubject(id);
+
+	    if (unpaidStudentTuition > 0) {
+	        throw new IllegalStateException("STUDENT_UNPAID");
+	    }
+
+	    // 3Xóa các quan hệ trung gian
+	    teacherSubjectRepository.deleteBySubjectId(id);
+	    studentSubjectRepository.deleteBySubjectId(id);
+
+	    // Xóa môn học
+	    subjectRepository.delete(subject);
 	}
+
+
 
 	// ------------------- UPDATE SUBJECT -------------------
 	@Transactional

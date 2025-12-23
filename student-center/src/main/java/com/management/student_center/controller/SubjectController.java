@@ -6,6 +6,7 @@ import com.management.student_center.dto.UpdateSubjectRequest;
 import com.management.student_center.entity.Subject;
 import com.management.student_center.service.SubjectService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -57,17 +58,40 @@ public class SubjectController {
 
     // ------------------- DELETE SUBJECT -------------------
     @DeleteMapping("/subjects/{id}")
-    public Map<String, Object> deleteSubject(@PathVariable Long id) {
-        Map<String, Object> response = new HashMap<>();
+    public ResponseEntity<?> deleteSubject(@PathVariable Long id) {
         try {
             subjectService.deleteSubject(id);
-            response.put("success", true);
-            response.put("message", "Xóa môn học thành công.");
-        } catch (Exception e) {
-            response.put("success", false);
-            response.put("message", e.getMessage());
+            return ResponseEntity.ok(
+                Map.of(
+                    "success", true,
+                    "message", "Xóa môn học thành công."
+                )
+            );
+        } catch (IllegalStateException e) {
+
+            String message;
+
+            switch (e.getMessage()) {
+                case "TEACHER_UNPAID":
+                    message = "Không thể xóa môn học vì vẫn còn lương giáo viên chưa thanh toán.";
+                    break;
+                case "STUDENT_UNPAID":
+                    message = "Không thể xóa môn học vì vẫn còn học sinh chưa thanh toán học phí.";
+                    break;
+                default:
+                    message = "Không thể xóa môn học.";
+            }
+
+            return ResponseEntity
+                .badRequest()
+                .body(
+                    Map.of(
+                        "success", false,
+                        "code", e.getMessage(),
+                        "message", message
+                    )
+                );
         }
-        return response;
     }
     
     @PutMapping("/subjects/{id}")

@@ -7,6 +7,8 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -30,11 +32,13 @@ public class AuthController {
     // LOGIN
     // ========================
     @PostMapping("/login")
-    public Map<String, Object> login(@RequestBody Map<String, String> request, HttpServletResponse response) {
+    public ResponseEntity<Map<String, Object>> login(@RequestBody Map<String, String> request, HttpServletResponse response) {
         String email = request.get("email");
         String password = request.get("password");
 
         Optional<User> userOpt = loginService.handleUserLogin(email, password);
+        Map<String, Object> res = new HashMap<>();
+
         if (userOpt.isPresent()) {
             User user = userOpt.get();
 
@@ -52,11 +56,8 @@ public class AuthController {
             cookie.setPath("/");
             response.addCookie(cookie);
 
-            Map<String, Object> res = new HashMap<>();
             res.put("message", "Đăng nhập thành công!");
             res.put("token", token);
-
-            // không trả password
             res.put("user", Map.of(
                     "id", user.getId(),
                     "email", user.getEmail(),
@@ -67,9 +68,10 @@ public class AuthController {
                     "roleId", user.getRoleId()
             ));
 
-            return res;
+            return ResponseEntity.ok(res);
         } else {
-            throw new RuntimeException("Email hoặc mật khẩu không đúng!");
+            res.put("message", "Email hoặc mật khẩu không đúng!");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(res);
         }
     }
 

@@ -31,4 +31,11 @@
 	             @Param("startDate") LocalDate startDate,
 	             @Param("endDate") LocalDate endDate
 	     );
+	    
+	    // Lấy tất cả học sinh vắng hoặc đi trễ trong khoảng thời gian sessionDate
+	    @Query("SELECT a FROM AttendanceStudent a " +
+	           "WHERE a.status IN ('absent', 'late') " +
+	           "AND a.session.sessionDate BETWEEN :startDate AND :endDate")
+	    List<AttendanceStudent> findAbsentOrLateBetweenDates(@Param("startDate") LocalDate startDate,
+	                                                        @Param("endDate") LocalDate endDate);
 	}
