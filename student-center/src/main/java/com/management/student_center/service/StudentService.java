@@ -18,6 +18,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -56,6 +58,72 @@ public class StudentService {
         this.passwordEncoder = passwordEncoder;
         this.imageService = imageService;
     }
+    
+    public StudentGroupResponseDTO getAllStudentsGroupBySchool(Map<String, String> filters) {
+
+        Specification<Student> spec = Specification
+                .where(StudentSpecification.hasRole("R2"))
+                .and(StudentSpecification.nameContains(filters.get("name")))
+                .and(StudentSpecification.genderIs(parseGender(filters.get("gender"))))
+                .and(StudentSpecification.gradeContains(filters.get("grade")))
+                .and(StudentSpecification.schoolNameContains(filters.get("schoolName")));
+
+        List<Student> students = studentRepository.findAll(spec);
+
+        long totalStudents = students.size();
+
+        List<StudentDTO> studentDTOs = students.stream()
+                .map(this::mapToStudentDTO)
+                .toList();
+
+        // ===============================
+        // GROUP THEO CẤP → TRƯỜNG
+        // ===============================
+
+        Map<String, Map<String, Long>> totalByLevelAndSchool = new HashMap<>();
+        Map<String, Map<String, List<StudentDTO>>> groupResult = new HashMap<>();
+
+        for (StudentDTO s : studentDTOs) {
+
+            // Xác định cấp
+            String grade = s.getGrade();
+            String level;
+
+            if (grade == null) {
+                level = "Chưa xác định";
+            } else if (List.of("6", "7", "8", "9").contains(grade)) {
+                level = "Cấp 2";
+            } else if (List.of("10", "11", "12").contains(grade)) {
+                level = "Cấp 3";
+            } else {
+                level = "Khác";
+            }
+
+            String school =
+                    (s.getSchoolName() != null && !s.getSchoolName().isBlank())
+                            ? s.getSchoolName()
+                            : "Chưa có trường";
+
+            // ===== group danh sách =====
+            groupResult
+                    .computeIfAbsent(level, k -> new HashMap<>())
+                    .computeIfAbsent(school, k -> new ArrayList<>())
+                    .add(s);
+
+            // ===== đếm số lượng =====
+            totalByLevelAndSchool
+                    .computeIfAbsent(level, k -> new HashMap<>())
+                    .merge(school, 1L, Long::sum);
+        }
+
+        StudentGroupResponseDTO response = new StudentGroupResponseDTO();
+        response.setTotalStudents(totalStudents);
+        response.setStudentsBySchool(groupResult);
+        response.setTotalStudentsBySchool(totalByLevelAndSchool);
+
+        return response;
+    }
+
 
     /**
      * getAllStudents (Có filter User, Student, Subject)
@@ -379,9 +447,14 @@ public class StudentService {
         dto.setSchoolName(student.getSchoolName());
         dto.setAddress(addressDTO);
         dto.setParents(parentDTOs);
-        
+
+        // Set createdAt và updatedAt
+        dto.setCreatedAt(student.getCreatedAt());  // Set createdAt
+        dto.setUpdatedAt(student.getUpdatedAt());  // Set updatedAt
+
         return dto;
     }
+
 
     private Boolean parseGender(String genderStr) {
         if (genderStr == null || genderStr.isEmpty()) return null;

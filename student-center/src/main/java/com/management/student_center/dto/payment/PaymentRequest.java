@@ -1,9 +1,13 @@
 package com.management.student_center.dto.payment;
 
+import java.math.BigDecimal;
+
 public class PaymentRequest {
     private Long teacherId;
     private int month;
     private int year;
+    private Long paymentId; // ID của hóa đơn lương (TeacherPayment ID)
+    private BigDecimal amount; // Số tiền muốn trả
 
     public PaymentRequest() {
     }
@@ -38,4 +42,9 @@ public class PaymentRequest {
     public void setYear(int year) {
         this.year = year;
     }
+    public Long getPaymentId() { return paymentId; }
+    public void setPaymentId(Long paymentId) { this.paymentId = paymentId; }
+    
+    public BigDecimal getAmount() { return amount; }
+    public void setAmount(BigDecimal amount) { this.amount = amount; }
 }

@@ -158,4 +158,17 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
                 @Param("startDate") LocalDate startDate,
                 @Param("endDate") LocalDate endDate
         );
+ // Lấy tất cả các môn học trong 1 ngày
+    @Query("""
+            SELECT DISTINCT s
+            FROM Session s
+            JOIN FETCH s.subject sub
+            LEFT JOIN FETCH sub.teacherSubjects ts
+            LEFT JOIN FETCH ts.teacher t
+            LEFT JOIN FETCH t.userInfo u
+            LEFT JOIN FETCH s.room r
+            WHERE s.sessionDate = :date
+            AND s.status = 'scheduled'
+        """)
+        List<Session> findSessionsByDate(@Param("date") LocalDate date);
 }

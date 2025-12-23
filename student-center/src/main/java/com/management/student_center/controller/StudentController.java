@@ -3,6 +3,7 @@ package com.management.student_center.controller;
 import com.management.student_center.dto.PaginatedResponseDTO;
 import com.management.student_center.dto.student.CreateStudentDTO;
 import com.management.student_center.dto.student.StudentDTO;
+import com.management.student_center.dto.student.StudentGroupResponseDTO;
 import com.management.student_center.entity.User;
 import com.management.student_center.service.StudentService;
 import org.springframework.http.HttpHeaders;
@@ -61,6 +62,38 @@ public class StudentController {
             return createErrorResponse(e);
         }
     }
+    
+    @GetMapping("/students/group-by-school")
+    public ResponseEntity<Map<String, Object>> getStudentsGroupBySchool(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String grade,
+            @RequestParam(required = false) String schoolName,
+            @RequestParam(required = false) String gender) {
+
+        try {
+            Map<String, String> filters = new HashMap<>();
+            if (name != null) filters.put("name", name);
+            if (grade != null) filters.put("grade", grade);
+            if (schoolName != null) filters.put("schoolName", schoolName);
+            if (gender != null) filters.put("gender", gender);
+
+            StudentGroupResponseDTO serviceResponse =
+                    studentService.getAllStudentsGroupBySchool(filters);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("errCode", 0);
+            response.put("message", "OK");
+            response.put("totalStudents", serviceResponse.getTotalStudents());
+            response.put("data", serviceResponse.getStudentsBySchool());
+            response.put("totalStudentsBySchool", serviceResponse.getTotalStudentsBySchool());
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            return createErrorResponse(e);
+        }
+    }
+
 
     /**
      * === handleGetStudentById ===

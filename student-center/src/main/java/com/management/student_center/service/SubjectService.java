@@ -15,280 +15,375 @@ import com.management.student_center.entity.TeacherSubject;
 import java.math.BigDecimal;
 import org.springframework.web.multipart.MultipartFile;
 import java.nio.file.*;
-
-
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 public class SubjectService {
 
-    @Autowired
-    private SubjectRepository subjectRepository;
+	@Autowired
+	private SubjectRepository subjectRepository;
 
-    @Autowired
-    private TeacherSubjectRepository teacherSubjectRepository;
+	@Autowired
+	private TeacherSubjectRepository teacherSubjectRepository;
 
-    @Autowired
-    private StudentSubjectRepository studentSubjectRepository;
-    
-    @Autowired
-    private TeacherRepository teacherRepository;
+	@Autowired
+	private StudentSubjectRepository studentSubjectRepository;
 
-    // ------------------- GET ALL SUBJECTS -------------------
-    public Map<String, Object> getAllSubjects(int page, int limit, String status) {
+	@Autowired
+	private TeacherRepository teacherRepository;
 
-        Pageable pageable = PageRequest.of(page - 1, limit, Sort.by("id").ascending());
-        Page<Subject> subjectsPage = (status != null) ?
-                subjectRepository.findByStatus(status, pageable) :
-                subjectRepository.findAll(pageable);
+	public Map<String, Object> getSubjectsByUserId(int page, int limit, String status, Long userId) {
 
-        long countAll = subjectRepository.count();
-        long countActive = subjectRepository.countByStatus("active");
-        long countUpcoming = subjectRepository.countByStatus("upcoming");
-        long countEnded = subjectRepository.countByStatus("ended");
+		Pageable pageable = PageRequest.of(page - 1, limit, Sort.by("id").ascending());
+		Page<Subject> subjectsPage;
 
-        List<SubjectDTO> subjectDTOs = subjectsPage.stream().map(subject -> {
-            SubjectDTO dto = mapToDTO(subject);
-            long current = subjectRepository.countCurrentStudents(subject.getId());
-            dto.setCurrentStudents(current);
-            return dto;
-        }).collect(Collectors.toList());
+		if (status != null) {
+			subjectsPage = subjectRepository.findByUserIdAndStatus(userId, status, pageable);
+		} else {
+			subjectsPage = subjectRepository.findByUserId(userId, pageable);
+		}
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("data", subjectDTOs);
-        response.put("total", subjectsPage.getTotalElements());
-        response.put("page", page);
-        response.put("limit", limit);
-        response.put("totalPages", subjectsPage.getTotalPages());
+		List<SubjectDTO> subjectDTOs = subjectsPage.stream().map(subject -> {
+			SubjectDTO dto = mapToDTO(subject);
+			long current = subjectRepository.countCurrentStudents(subject.getId());
+			dto.setCurrentStudents(current);
+			return dto;
+		}).collect(Collectors.toList());
 
-        Map<String, Long> stats = new HashMap<>();
-        stats.put("all", countAll);
-        stats.put("active", countActive);
-        stats.put("upcoming", countUpcoming);
-        stats.put("ended", countEnded);
+		// Stats chung cho teacher (optional)
+		long countAll = subjectRepository.findByUserId(userId, Pageable.unpaged()).getTotalElements();
+		long countActive = subjectRepository.findByUserIdAndStatus(userId, "active", Pageable.unpaged())
+				.getTotalElements();
+		long countUpcoming = subjectRepository.findByUserIdAndStatus(userId, "upcoming", Pageable.unpaged())
+				.getTotalElements();
+		long countEnded = subjectRepository.findByUserIdAndStatus(userId, "ended", Pageable.unpaged())
+				.getTotalElements();
 
-        response.put("stats", stats);
-        return response;
-    }
+		Map<String, Object> response = new HashMap<>();
+		response.put("success", true);
+		response.put("data", subjectDTOs);
+		response.put("total", subjectsPage.getTotalElements());
+		response.put("page", page);
+		response.put("limit", limit);
+		response.put("totalPages", subjectsPage.getTotalPages());
 
-    // ------------------- GET SUBJECT BY ID -------------------
-    public SubjectDTO getSubjectById(Long id) {
-        Subject subject = subjectRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy môn học"));
+		Map<String, Long> stats = new HashMap<>();
+		stats.put("all", countAll);
+		stats.put("active", countActive);
+		stats.put("upcoming", countUpcoming);
+		stats.put("ended", countEnded);
 
-        SubjectDTO dto = mapToDTO(subject);
-        long current = subjectRepository.countCurrentStudents(id);
-        dto.setCurrentStudents(current);
-        return dto;
-    }
+		response.put("stats", stats);
+		return response;
+	}
+	
+	// ------------------- GET ALL SUBJECTS (NO PAGINATION) -------------------
+	public Map<String, Object> getAllSubjectsNoPaging(String status) {
 
-    // ------------------- DELETE SUBJECT -------------------
-    @Transactional
-    public void deleteSubject(Long id) {
-        Subject subject = subjectRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy môn học"));
+	    List<Subject> subjects;
 
-        // Xóa các TeacherSubject liên quan
-        teacherSubjectRepository.deleteBySubjectId(id);
+	    if (status != null) {
+	        subjects = subjectRepository.findByStatus(status);
+	    } else {
+	        subjects = subjectRepository.findAll();
+	    }
 
-        // Xóa các StudentSubject liên quan
-        studentSubjectRepository.deleteBySubjectId(id);
+	    List<SubjectDTO> subjectDTOs = subjects.stream().map(subject -> {
+	        SubjectDTO dto = mapToDTO(subject);
+	        long current = subjectRepository.countCurrentStudents(subject.getId());
+	        dto.setCurrentStudents(current);
+	        return dto;
+	    }).collect(Collectors.toList());
 
-        // Xóa môn học
-        subjectRepository.delete(subject);
-    }
-    
- // ------------------- UPDATE SUBJECT -------------------
-    @Transactional
-    public void updateSubject(Long id, UpdateSubjectRequest updatedData) {
-        // 1. Lấy môn học
-        Subject subject = subjectRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy môn học"));
+	    long countAll = subjectRepository.count();
+	    long countActive = subjectRepository.countByStatus("active");
+	    long countUpcoming = subjectRepository.countByStatus("upcoming");
+	    long countEnded = subjectRepository.countByStatus("ended");
 
-        // 2. Cập nhật thông tin môn học
-        subject.setName(updatedData.getName());
-        subject.setGrade(updatedData.getGrade());
+	    Map<String, Long> stats = new HashMap<>();
+	    stats.put("all", countAll);
+	    stats.put("active", countActive);
+	    stats.put("upcoming", countUpcoming);
+	    stats.put("ended", countEnded);
 
-        // Chuyển Double -> BigDecimal, nếu null thì giữ nguyên
-        if (updatedData.getPrice() != null) {
-            subject.setPrice(BigDecimal.valueOf(updatedData.getPrice()));
-        }
+	    Map<String, Object> response = new HashMap<>();
+	    response.put("success", true);
+	    response.put("data", subjectDTOs);
+	    response.put("total", subjectDTOs.size());
+	    response.put("stats", stats);
 
-        subject.setStatus(updatedData.getStatus());
-        subject.setMaxStudents(updatedData.getMaxStudents());
-        subject.setSessionsPerWeek(updatedData.getSessionsPerWeek());
-        subject.setNote(updatedData.getNote());
+	    return response;
+	}
 
-        subjectRepository.save(subject);
 
-        // 3. Chuẩn hóa teacherId
-        Long teacherIdNorm = updatedData.getTeacherId();
+	// ------------------- GET ALL SUBJECTS -------------------
+	public Map<String, Object> getAllSubjects(int page, int limit, String status) {
 
-        // Kiểm tra TeacherSubject hiện có
-        TeacherSubject existingTS = teacherSubjectRepository.findBySubjectId(id).orElse(null);
+		Pageable pageable = PageRequest.of(page - 1, limit, Sort.by("id").ascending());
+		Page<Subject> subjectsPage = (status != null) ? subjectRepository.findByStatus(status, pageable)
+				: subjectRepository.findAll(pageable);
 
-        if (existingTS != null) {
-            if (teacherIdNorm == null) {
-                // Nếu không còn giáo viên gán -> xóa quan hệ
-                teacherSubjectRepository.delete(existingTS);
-            } else {
-                // Cập nhật quan hệ giáo viên hiện tại
-                Teacher teacher = teacherRepository.findById(teacherIdNorm)
-                        .orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên"));
-                existingTS.setTeacher(teacher);
+		long countAll = subjectRepository.count();
+		long countActive = subjectRepository.countByStatus("active");
+		long countUpcoming = subjectRepository.countByStatus("upcoming");
+		long countEnded = subjectRepository.countByStatus("ended");
 
-                // Cập nhật salaryRate nếu có, ngược lại giữ nguyên
-                BigDecimal newSalary = updatedData.getSalaryRate() != null
-                        ? BigDecimal.valueOf(updatedData.getSalaryRate())
-                        : existingTS.getSalaryRate();
-                existingTS.setSalaryRate(newSalary);
+		List<SubjectDTO> subjectDTOs = subjectsPage.stream().map(subject -> {
+			SubjectDTO dto = mapToDTO(subject);
+			long current = subjectRepository.countCurrentStudents(subject.getId());
+			dto.setCurrentStudents(current);
+			return dto;
+		}).collect(Collectors.toList());
 
-                teacherSubjectRepository.save(existingTS);
-            }
-        } else {
-            // Nếu chưa có TeacherSubject nhưng teacherId != null -> tạo mới
-            if (teacherIdNorm != null) {
-                Teacher teacher = teacherRepository.findById(teacherIdNorm)
-                        .orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên"));
-                TeacherSubject ts = new TeacherSubject();
-                ts.setSubject(subject);
-                ts.setTeacher(teacher);
+		Map<String, Object> response = new HashMap<>();
+		response.put("success", true);
+		response.put("data", subjectDTOs);
+		response.put("total", subjectsPage.getTotalElements());
+		response.put("page", page);
+		response.put("limit", limit);
+		response.put("totalPages", subjectsPage.getTotalPages());
 
-                // Nếu salaryRate null -> mặc định 0
-                BigDecimal newSalary = updatedData.getSalaryRate() != null
-                        ? BigDecimal.valueOf(updatedData.getSalaryRate())
-                        : BigDecimal.ZERO;
-                ts.setSalaryRate(newSalary);
+		Map<String, Long> stats = new HashMap<>();
+		stats.put("all", countAll);
+		stats.put("active", countActive);
+		stats.put("upcoming", countUpcoming);
+		stats.put("ended", countEnded);
 
-                teacherSubjectRepository.save(ts);
-            }
-        }
-    }
-   
-    @Transactional
-    public Subject createSubject(CreateSubjectRequest request) throws Exception {
+		response.put("stats", stats);
+		return response;
+	}
 
-        Subject subject = new Subject();
+	// ------------------- GET SUBJECT BY ID -------------------
+	public SubjectDTO getSubjectById(Long id) {
+		Subject subject = subjectRepository.findById(id)
+				.orElseThrow(() -> new RuntimeException("Không tìm thấy môn học"));
 
-        subject.setName(request.getName());
-        subject.setGrade(request.getGrade());
+		SubjectDTO dto = mapToDTO(subject);
+		long current = subjectRepository.countCurrentStudents(id);
+		dto.setCurrentStudents(current);
+		return dto;
+	}
 
-        // Price: Double → BigDecimal
-        if (request.getPrice() != null) {
-            subject.setPrice(BigDecimal.valueOf(request.getPrice()));
-        }
+	// ------------------- DELETE SUBJECT -------------------
+	@Transactional
+	public void deleteSubject(Long id) {
+		Subject subject = subjectRepository.findById(id)
+				.orElseThrow(() -> new RuntimeException("Không tìm thấy môn học"));
 
-        subject.setStatus(request.getStatus() != null ? request.getStatus() : "active");
-        int maxStudents = 30;
-        try {
-            maxStudents = Integer.parseInt(request.getMaxStudents());
-            if (maxStudents <= 0) maxStudents = 30;
-        } catch (Exception ignored) {}
+		// Xóa các TeacherSubject liên quan
+		teacherSubjectRepository.deleteBySubjectId(id);
 
-        int sessionsPerWeek = 1;
-        try {
-            sessionsPerWeek = Integer.parseInt(request.getSessionsPerWeek());
-            if (sessionsPerWeek <= 0) sessionsPerWeek = 1;
-        } catch (Exception ignored) {}
+		// Xóa các StudentSubject liên quan
+		studentSubjectRepository.deleteBySubjectId(id);
 
-        subject.setMaxStudents(maxStudents);
-        subject.setSessionsPerWeek(sessionsPerWeek);
+		// Xóa môn học
+		subjectRepository.delete(subject);
+	}
 
-        subject.setNote(request.getNote());
+	// ------------------- UPDATE SUBJECT -------------------
+	@Transactional
+	public void updateSubject(Long id, UpdateSubjectRequest updatedData) {
+		// 1. Lấy môn học
+		Subject subject = subjectRepository.findById(id)
+				.orElseThrow(() -> new RuntimeException("Không tìm thấy môn học"));
 
-        // ----------- LẤY FILE TRONG DTO -----------
-        MultipartFile file = request.getImage();
+		// 2. Cập nhật thông tin môn học
+		subject.setName(updatedData.getName());
+		subject.setGrade(updatedData.getGrade());
 
-        if (file != null && !file.isEmpty()) {
+		// Chuyển Double -> BigDecimal, nếu null thì giữ nguyên
+		if (updatedData.getPrice() != null) {
+			subject.setPrice(BigDecimal.valueOf(updatedData.getPrice()));
+		}
 
-            String originalName = file.getOriginalFilename();
-            String ext = "";
+		subject.setStatus(updatedData.getStatus());
+		subject.setMaxStudents(updatedData.getMaxStudents());
+		subject.setSessionsPerWeek(updatedData.getSessionsPerWeek());
+		subject.setNote(updatedData.getNote());
 
-            if (originalName != null && originalName.contains(".")) {
-                ext = originalName.substring(originalName.lastIndexOf("."));
-            }
+		subjectRepository.save(subject);
 
-            String fileName = System.currentTimeMillis() + "-"
-                    + (int) (Math.random() * 1_000_000_000)
-                    + ext;
+		// 3. Chuẩn hóa teacherId
+		Long teacherIdNorm = updatedData.getTeacherId();
 
-            Path uploadDir = Paths.get("uploads/subjects");
+		// Kiểm tra TeacherSubject hiện có
+		TeacherSubject existingTS = teacherSubjectRepository.findBySubjectId(id).orElse(null);
 
-            if (!Files.exists(uploadDir)) {
-                Files.createDirectories(uploadDir);
-            }
+		if (existingTS != null) {
+			if (teacherIdNorm == null) {
+				// Nếu không còn giáo viên gán -> xóa quan hệ
+				teacherSubjectRepository.delete(existingTS);
+			} else {
+				// Cập nhật quan hệ giáo viên hiện tại
+				Teacher teacher = teacherRepository.findById(teacherIdNorm)
+						.orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên"));
+				existingTS.setTeacher(teacher);
 
-            Path filePath = uploadDir.resolve(fileName);
+				// Cập nhật salaryRate nếu có, ngược lại giữ nguyên
+				BigDecimal newSalary = updatedData.getSalaryRate() != null
+						? BigDecimal.valueOf(updatedData.getSalaryRate())
+						: existingTS.getSalaryRate();
+				existingTS.setSalaryRate(newSalary);
 
-            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+				teacherSubjectRepository.save(existingTS);
+			}
+		} else {
+			// Nếu chưa có TeacherSubject nhưng teacherId != null -> tạo mới
+			if (teacherIdNorm != null) {
+				Teacher teacher = teacherRepository.findById(teacherIdNorm)
+						.orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên"));
+				TeacherSubject ts = new TeacherSubject();
+				ts.setSubject(subject);
+				ts.setTeacher(teacher);
 
-            subject.setImage("/uploads/subjects/" + fileName);
-        }
+				// Nếu salaryRate null -> mặc định 0
+				BigDecimal newSalary = updatedData.getSalaryRate() != null
+						? BigDecimal.valueOf(updatedData.getSalaryRate())
+						: BigDecimal.ZERO;
+				ts.setSalaryRate(newSalary);
 
-        // --- LƯU SUBJECT ---
-        subjectRepository.save(subject);
+				teacherSubjectRepository.save(ts);
+			}
+		}
+	}
 
-        // --- TẠO TEACHER-SUBJECT ---
-        if (request.getTeacherId() != null) {
+	@Transactional
+	public Subject createSubject(CreateSubjectRequest request) throws Exception {
 
-            Teacher teacher = teacherRepository.findById(request.getTeacherId())
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên"));
+		Subject subject = new Subject();
 
-            TeacherSubject ts = new TeacherSubject();
-            ts.setSubject(subject);
-            ts.setTeacher(teacher);
-            ts.setSalaryRate(BigDecimal.ZERO);
+		subject.setName(request.getName());
+		subject.setGrade(request.getGrade());
 
-            teacherSubjectRepository.save(ts);
-        }
+		// Price: Double → BigDecimal
+		if (request.getPrice() != null) {
+			subject.setPrice(BigDecimal.valueOf(request.getPrice()));
+		}
 
-        return subject;
-    }
+		subject.setStatus(request.getStatus() != null ? request.getStatus() : "active");
+		int maxStudents = 30;
+		try {
+			maxStudents = Integer.parseInt(request.getMaxStudents());
+			if (maxStudents <= 0)
+				maxStudents = 30;
+		} catch (Exception ignored) {
+		}
 
-    // ------------------- MAPPING HELPER -------------------
-    private SubjectDTO mapToDTO(Subject subject) {
-        SubjectDTO dto = new SubjectDTO();
-        dto.setId(subject.getId());
-        dto.setName(subject.getName());
-        dto.setGrade(subject.getGrade());
-        dto.setPrice(subject.getPrice());
-        dto.setStatus(subject.getStatus());
-        dto.setMaxStudents(subject.getMaxStudents());
-        dto.setSessionsPerWeek(subject.getSessionsPerWeek());
-        dto.setImage(subject.getImage());
-        dto.setNote(subject.getNote());
+		int sessionsPerWeek = 1;
+		try {
+			sessionsPerWeek = Integer.parseInt(request.getSessionsPerWeek());
+			if (sessionsPerWeek <= 0)
+				sessionsPerWeek = 1;
+		} catch (Exception ignored) {
+		}
 
-        if (subject.getTeacherSubjects() != null) {
-            List<TeacherSubjectDTO> tsDTOs = subject.getTeacherSubjects().stream().map(ts -> {
-                TeacherSubjectDTO tsDTO = new TeacherSubjectDTO();
-                tsDTO.setSalaryRate(ts.getSalaryRate());
+		subject.setMaxStudents(maxStudents);
+		subject.setSessionsPerWeek(sessionsPerWeek);
 
-                if (ts.getTeacher() != null) {
-                    TeacherDTO tDTO = new TeacherDTO();
-                    tDTO.setId(ts.getTeacher().getId());
-                    tDTO.setSpecialty(ts.getTeacher().getSpecialty());
+		subject.setNote(request.getNote());
 
-                    if (ts.getTeacher().getUserInfo() != null) {
-                        UserDTO uDTO = new UserDTO();
-                        uDTO.setId(ts.getTeacher().getUserInfo().getId());
-                        uDTO.setFullName(ts.getTeacher().getUserInfo().getFullName());
-                        uDTO.setEmail(ts.getTeacher().getUserInfo().getEmail());
-                        uDTO.setGender(ts.getTeacher().getUserInfo().getGender());
-                        uDTO.setPhoneNumber(ts.getTeacher().getUserInfo().getPhoneNumber());
-                        tDTO.setUser(uDTO);
-                    }
+		// ----------- LẤY FILE TRONG DTO -----------
+		MultipartFile file = request.getImage();
 
-                    tsDTO.setTeacher(tDTO);
-                }
+		if (file != null && !file.isEmpty()) {
 
-                return tsDTO;
-            }).collect(Collectors.toList());
+			String originalName = file.getOriginalFilename();
+			String ext = "";
 
-            dto.setTeacherSubjects(tsDTOs);
-        }
+			if (originalName != null && originalName.contains(".")) {
+				ext = originalName.substring(originalName.lastIndexOf("."));
+			}
 
-        return dto;
-    }
+			String fileName = System.currentTimeMillis() + "-" + (int) (Math.random() * 1_000_000_000) + ext;
+
+			Path uploadDir = Paths.get("uploads/subjects");
+
+			if (!Files.exists(uploadDir)) {
+				Files.createDirectories(uploadDir);
+			}
+
+			Path filePath = uploadDir.resolve(fileName);
+
+			Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+			subject.setImage("/uploads/subjects/" + fileName);
+		}
+
+		// --- LƯU SUBJECT ---
+		subjectRepository.save(subject);
+
+		// --- TẠO TEACHER-SUBJECT ---
+		if (request.getTeacherId() != null) {
+
+			Teacher teacher = teacherRepository.findById(request.getTeacherId())
+					.orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên"));
+
+			TeacherSubject ts = new TeacherSubject();
+			ts.setSubject(subject);
+			ts.setTeacher(teacher);
+			ts.setSalaryRate(BigDecimal.ZERO);
+
+			teacherSubjectRepository.save(ts);
+		}
+
+		return subject;
+	}
+
+	// ------------------- MAPPING HELPER -------------------
+	private SubjectDTO mapToDTO(Subject subject) {
+		// Tạo đối tượng SubjectDTO mới
+		SubjectDTO dto = new SubjectDTO();
+		// Định dạng thời gian cho createdAt và updatedAt
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+		// Ánh xạ các thuộc tính của Subject sang SubjectDTO
+		dto.setId(subject.getId());
+		dto.setName(subject.getName());
+		dto.setGrade(subject.getGrade());
+		dto.setPrice(subject.getPrice());
+		dto.setStatus(subject.getStatus());
+		dto.setMaxStudents(subject.getMaxStudents());
+		dto.setSessionsPerWeek(subject.getSessionsPerWeek());
+		dto.setImage(subject.getImage());
+		dto.setNote(subject.getNote());
+
+		// Ánh xạ trường createdAt và updatedAt sang String với định dạng
+		dto.setCreatedAt(subject.getCreatedAt() != null ? subject.getCreatedAt().format(formatter) : null);
+		dto.setUpdatedAt(subject.getUpdatedAt() != null ? subject.getUpdatedAt().format(formatter) : null);
+
+		// Ánh xạ danh sách TeacherSubjects nếu có
+		if (subject.getTeacherSubjects() != null) {
+			List<TeacherSubjectDTO> tsDTOs = subject.getTeacherSubjects().stream().map(ts -> {
+				TeacherSubjectDTO tsDTO = new TeacherSubjectDTO();
+				tsDTO.setSalaryRate(ts.getSalaryRate());
+
+				if (ts.getTeacher() != null) {
+					TeacherDTO tDTO = new TeacherDTO();
+					tDTO.setId(ts.getTeacher().getId());
+					tDTO.setSpecialty(ts.getTeacher().getSpecialty());
+
+					if (ts.getTeacher().getUserInfo() != null) {
+						UserDTO uDTO = new UserDTO();
+						uDTO.setId(ts.getTeacher().getUserInfo().getId());
+						uDTO.setFullName(ts.getTeacher().getUserInfo().getFullName());
+						uDTO.setEmail(ts.getTeacher().getUserInfo().getEmail());
+						uDTO.setGender(ts.getTeacher().getUserInfo().getGender());
+						uDTO.setPhoneNumber(ts.getTeacher().getUserInfo().getPhoneNumber());
+						tDTO.setUser(uDTO);
+					}
+
+					tsDTO.setTeacher(tDTO);
+				}
+
+				return tsDTO;
+			}).collect(Collectors.toList());
+
+			dto.setTeacherSubjects(tsDTOs);
+		}
+
+		return dto;
+	}
+
 }

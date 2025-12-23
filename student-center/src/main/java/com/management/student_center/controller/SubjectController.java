@@ -18,6 +18,24 @@ public class SubjectController {
 
     @Autowired
     private SubjectService subjectService;
+    
+    @GetMapping("/subjects/teacher/{userId}")
+    public Map<String, Object> getSubjectsByUser(
+            @PathVariable Long userId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "12") int limit,
+            @RequestParam(required = false) String status
+    ) {
+        return subjectService.getSubjectsByUserId(page, limit, status, userId);
+    }
+    
+ // ------------------- GET ALL SUBJECTS (NO PAGINATION) -------------------
+    @GetMapping("/subjects/all")
+    public Map<String, Object> getAllSubjectsNoPaging(
+            @RequestParam(required = false) String status
+    ) {
+        return subjectService.getAllSubjectsNoPaging(status);
+    }
 
     @GetMapping("/subjects")
     public Map<String, Object> getSubjects(

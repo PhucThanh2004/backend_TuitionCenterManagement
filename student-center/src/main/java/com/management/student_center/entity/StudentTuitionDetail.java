@@ -25,6 +25,10 @@ public class StudentTuitionDetail {
     private BigDecimal hourlyRate;  // Giá tiền 1 giờ (Snapshot)
     private BigDecimal totalMoney;  // totalHours * hourlyRate
 
+    @Column(name = "note")          // <-- THÊM MỚI
+    private String note;
+    
+    
     // --- Getters & Setters ---
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -40,4 +44,7 @@ public class StudentTuitionDetail {
     public void setHourlyRate(BigDecimal hourlyRate) { this.hourlyRate = hourlyRate; }
     public BigDecimal getTotalMoney() { return totalMoney; }
     public void setTotalMoney(BigDecimal totalMoney) { this.totalMoney = totalMoney; }
+    
+    public String getNote() { return note; }
+    public void setNote(String note) { this.note = note; }
 }

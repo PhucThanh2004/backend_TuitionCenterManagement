@@ -1,6 +1,12 @@
 package com.management.student_center.dto.tuition;
 
+import java.math.BigDecimal;
+
 public class TuitionPaymentRequest {
+	
+	private Long tuitionId;       // ID của hóa đơn cần thanh toán
+    private BigDecimal amount;
+    
     private Long studentId;
     private int month;
     private int year;
@@ -39,5 +45,21 @@ public class TuitionPaymentRequest {
 
     public void setYear(int year) {
         this.year = year;
+    }
+    
+    public Long getTuitionId() {
+        return tuitionId;
+    }
+
+    public void setTuitionId(Long tuitionId) {
+        this.tuitionId = tuitionId;
+    }
+
+    public BigDecimal getAmount() {
+        return amount;
+    }
+
+    public void setAmount(BigDecimal amount) {
+        this.amount = amount;
     }
 }

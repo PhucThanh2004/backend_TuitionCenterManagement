@@ -21,7 +21,10 @@ public class StudentTuition {
     private int year;
     
     private BigDecimal totalAmount; // Tổng tiền phải đóng
-    private String status; // "unpaid", "paid"
+    
+    private BigDecimal paidAmount = BigDecimal.ZERO;
+    
+    private String status; // "unpaid", "partial", "paid"
     
     @Column(columnDefinition = "TEXT")
     private String notes;
@@ -48,6 +51,8 @@ public class StudentTuition {
     public void setYear(int year) { this.year = year; }
     public BigDecimal getTotalAmount() { return totalAmount; }
     public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
+    public BigDecimal getPaidAmount() { return paidAmount; }
+    public void setPaidAmount(BigDecimal paidAmount) { this.paidAmount = paidAmount; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public String getNotes() { return notes; }
@@ -56,4 +61,13 @@ public class StudentTuition {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public List<StudentTuitionDetail> getDetails() { return details; }
     public void setDetails(List<StudentTuitionDetail> details) { this.details = details; }
+
+    public BigDecimal getRemainingAmount() {
+        BigDecimal total = this.totalAmount != null ? this.totalAmount : BigDecimal.ZERO;
+        BigDecimal paid = this.paidAmount != null ? this.paidAmount : BigDecimal.ZERO;
+        BigDecimal remaining = total.subtract(paid);
+        // Đảm bảo không trả về số âm
+        return remaining.compareTo(BigDecimal.ZERO) > 0 ? remaining : BigDecimal.ZERO;
+    }
+
 }

@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.util.List;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "subjects")
@@ -44,10 +44,38 @@ public class Subject {
     @JsonIgnore
     private List<TeacherSubject> teacherSubjects;
 
-    // Constructor mặc định
-    public Subject() {}
+    // Add createdAt and updatedAt fields
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 
-    // Getter & Setter
+    @Column(nullable = false)
+    private LocalDateTime updatedAt;
+
+    // Constructor mặc định
+    public Subject() {
+        // Set createdAt and updatedAt to the current time on creation
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    // Getter & Setter methods for createdAt and updatedAt
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    // Existing Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -80,11 +108,10 @@ public class Subject {
 
     public List<TeacherSubject> getTeacherSubjects() { return teacherSubjects; }
     public void setTeacherSubjects(List<TeacherSubject> teacherSubjects) { this.teacherSubjects = teacherSubjects; }
-    
-    @Transient   // ❗ Không lưu vào DB, nhưng cho phép set/get
+
+    @Transient   // ❗ Not stored in DB, but allows set/get
     private Long currentStudents;
 
-    // getter / setter
     public Long getCurrentStudents() {
         return currentStudents;
     }

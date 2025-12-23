@@ -3,6 +3,7 @@ package com.management.student_center.entity;
 import jakarta.persistence.*;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
@@ -39,6 +40,11 @@ public class Student {
     @JsonIgnore
     private List<StudentSubject> studentSubjects;
 
+    // Thêm createdAt và updatedAt
+    private LocalDateTime createdAt;
+
+    private LocalDateTime updatedAt;
+
     // Constructor mặc định
     public Student() {}
 
@@ -46,7 +52,8 @@ public class Student {
     public Student(Long id, User userInfo, Address addressInfo, LocalDate dateOfBirth,
                    String grade, String schoolName,
                    List<ParentContact> parentContacts,
-                   List<StudentSubject> studentSubjects) {
+                   List<StudentSubject> studentSubjects,
+                   LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.userInfo = userInfo;
         this.addressInfo = addressInfo;
@@ -55,6 +62,8 @@ public class Student {
         this.schoolName = schoolName;
         this.parentContacts = parentContacts;
         this.studentSubjects = studentSubjects;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
     }
 
     // Getter và Setter
@@ -81,4 +90,10 @@ public class Student {
 
     public List<StudentSubject> getStudentSubjects() { return studentSubjects; }
     public void setStudentSubjects(List<StudentSubject> studentSubjects) { this.studentSubjects = studentSubjects; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

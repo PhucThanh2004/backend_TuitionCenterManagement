@@ -80,14 +80,15 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.POST, "/v1/api/students/delete-multiple").permitAll()
             .requestMatchers(HttpMethod.GET, "/v1/api/students/export").permitAll()
             
-            // Teacher Subject (Thỏa thuận lương)
             .requestMatchers("/v1/api/teacher-subjects/**").permitAll()
             
-            // === THÊM DÒNG NÀY CHO TEACHER PAYMENT (Thanh toán lương) ===
             .requestMatchers("/v1/api/payments/**").permitAll()
             
-            
             .requestMatchers("/v1/api/tuitions/**").permitAll()
+            
+            .requestMatchers("/v1/api/teacher-attendance/**").permitAll()
+            
+            .requestMatchers("/v1/api/statistics/**").permitAll()
             
             .anyRequest().authenticated()
         );

@@ -4,10 +4,13 @@ import com.management.student_center.entity.Student;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+
 import java.util.Optional;
 
 public interface StudentRepository extends JpaRepository<Student, Long>, JpaSpecificationExecutor<Student> {
     List<Student> findByGrade(String grade);
     
     Optional<Student> findByUserInfoId(Long userId);
+    
+ 
 }

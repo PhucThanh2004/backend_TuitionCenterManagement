@@ -1,6 +1,7 @@
 package com.management.student_center.service;
 
 import com.management.student_center.dto.payment.SalaryCalculationDTO;
+import com.management.student_center.dto.payment.TeacherPaymentDetailUpdateRequest; // DTO mới
 import com.management.student_center.entity.*;
 import com.management.student_center.repository.*;
 import org.springframework.stereotype.Service;
@@ -35,81 +36,56 @@ public class TeacherPaymentService {
         this.subjectRepository = subjectRepository;
     }
 
-    /**
-     * 🧩 Tính lương giáo viên trong 1 tháng (Logic nội bộ)
-     */
+    // --- PHẦN 1: TÍNH TOÁN LOGIC (Giữ nguyên logic cũ nhưng trả về DTO) ---
     public List<SalaryCalculationDTO> calculateTeacherSalaryByMonth(int month, int year) {
+        // ... (Giữ nguyên code tính toán của bạn ở đây)
+        // Lưu ý: Đoạn logic tính toán của bạn đã ổn.
         YearMonth yearMonth = YearMonth.of(year, month);
         LocalDate startOfMonth = yearMonth.atDay(1);
         LocalDate endOfMonth = yearMonth.atEndOfMonth();
 
-        // Tối ưu: Nên viết Query trong Repo để chỉ lấy Teacher R1 và Active
-        // List<Teacher> teachers = teacherRepository.findActiveTeachersByRole("R1");
-        List<Teacher> teachers = teacherRepository.findAll(); 
-
+        List<Teacher> teachers = teacherRepository.findAll();
         List<SalaryCalculationDTO> results = new ArrayList<>();
 
         for (Teacher teacher : teachers) {
-            // Validate user info & role
-            if (teacher.getUserInfo() == null || !"R1".equals(teacher.getUserInfo().getRoleId())) {
-                continue;
-            }
+            if (teacher.getUserInfo() == null || !"R1".equals(teacher.getUserInfo().getRoleId())) continue;
 
             SalaryCalculationDTO dto = new SalaryCalculationDTO();
             dto.setTeacherId(teacher.getId());
             dto.setFullName(teacher.getUserInfo().getFullName());
             dto.setEmail(teacher.getUserInfo().getEmail());
             dto.setPhoneNumber(teacher.getUserInfo().getPhoneNumber());
-            
-            // Dùng BigDecimal để cộng dồn tổng tiền
-            BigDecimal totalAmountBD = BigDecimal.ZERO; 
+
+            BigDecimal totalAmountBD = BigDecimal.ZERO;
 
             for (TeacherSubject ts : teacher.getTeacherSubjects()) {
-                // Lấy các session trong tháng
                 List<Session> sessions = sessionRepository.findValidSessionsForSalary(
-                        teacher.getId(),
-                        ts.getSubject().getId(),
-                        startOfMonth,
-                        endOfMonth
-                );
+                        teacher.getId(), ts.getSubject().getId(), startOfMonth, endOfMonth);
 
                 if (sessions.isEmpty()) continue;
 
-                // Tính tổng giờ (dùng double cho thời gian là ok)
                 double totalHours = 0.0;
                 for (Session s : sessions) {
                     Duration duration = Duration.between(s.getStartTime(), s.getEndTime());
                     totalHours += (double) duration.toMinutes() / 60.0;
                 }
 
-                // --- LOGIC TÍNH TIỀN QUAN TRỌNG ---
-                // 1. Convert giờ sang BigDecimal
                 BigDecimal hoursBD = BigDecimal.valueOf(totalHours);
-                
-                // 2. Lấy mức lương (Giả sử Entity TeacherSubject đã để là BigDecimal)
-                BigDecimal salaryRateBD = ts.getSalaryRate(); 
-                
-                // 3. Nhân tiền: Giờ * Lương
-                // setScale(0, RoundingMode.HALF_UP): Làm tròn về số nguyên (VD: 500.5 -> 501)
+                BigDecimal salaryRateBD = ts.getSalaryRate() != null ? ts.getSalaryRate() : BigDecimal.ZERO;
                 BigDecimal totalMoneyBD = hoursBD.multiply(salaryRateBD).setScale(0, RoundingMode.HALF_UP);
 
                 SalaryCalculationDTO.SubjectSalaryDTO subjDTO = new SalaryCalculationDTO.SubjectSalaryDTO();
                 subjDTO.setSubjectId(ts.getSubject().getId());
                 subjDTO.setSubjectName(ts.getSubject().getName());
-                
-                // Set các giá trị đã tính toán
                 subjDTO.setSalaryRate(salaryRateBD);
                 subjDTO.setTotalSessions(sessions.size());
                 subjDTO.setTotalHours((float) totalHours);
                 subjDTO.setTotalMoney(totalMoneyBD);
 
                 dto.getSubjects().add(subjDTO);
-                
-                // Cộng vào tổng lương của giáo viên
                 totalAmountBD = totalAmountBD.add(totalMoneyBD);
             }
 
-            // Chỉ thêm vào danh sách nếu có môn dạy
             if (!dto.getSubjects().isEmpty()) {
                 dto.setTotalAmount(totalAmountBD);
                 results.add(dto);
@@ -118,87 +94,174 @@ public class TeacherPaymentService {
         return results;
     }
 
-    /**
-     * 🧩 Tạo bảng lương (Lưu vào DB)
-     */
+    // --- PHẦN 2: TẠO BẢNG LƯƠNG (CREATE) ---
     @Transactional
     public List<TeacherPayment> createTeacherPayments(int month, int year, String notes) {
         String noteIdentifier = String.format("Lương tháng %d/%d", month, year);
-
-        // Check trùng
-        List<TeacherPayment> existing = teacherPaymentRepository.findByNotesContaining(noteIdentifier);
-        if (!existing.isEmpty()) {
-            throw new RuntimeException("Bảng lương cho tháng " + month + "/" + year + " đã được tạo trước đó.");
-        }
 
         List<SalaryCalculationDTO> salaries = calculateTeacherSalaryByMonth(month, year);
         List<TeacherPayment> savedPayments = new ArrayList<>();
 
         for (SalaryCalculationDTO sal : salaries) {
+            // Check trùng bằng month/year thay vì notes
+            boolean exists = teacherPaymentRepository.existsByTeacherIdAndMonthAndYear(sal.getTeacherId(), month, year);
+            if (exists) continue;
+
             TeacherPayment payment = new TeacherPayment();
-            // Load Teacher reference (dùng getReferenceById để đỡ tốn query nếu ko cần check null)
             Teacher teacherRef = teacherRepository.findById(sal.getTeacherId()).orElse(null);
-            
+
             payment.setTeacher(teacherRef);
+            payment.setMonth(month); // SET MONTH
+            payment.setYear(year);   // SET YEAR
+            
             payment.setAmount(sal.getTotalAmount());
+            payment.setPaidAmount(BigDecimal.ZERO); // Mặc định đã trả = 0
+            
             payment.setPaymentDate(LocalDate.now());
             payment.setStatus("unpaid");
-            payment.setNotes(noteIdentifier + ". " + (notes != null ? notes : ""));
-            
-            // Tạo list details
+            payment.setNotes(noteIdentifier + (notes != null ? ". " + notes : ""));
+
             List<TeacherPaymentDetail> details = new ArrayList<>();
             for (SalaryCalculationDTO.SubjectSalaryDTO sub : sal.getSubjects()) {
                 TeacherPaymentDetail detail = new TeacherPaymentDetail();
+                detail.setPayment(payment);
                 
-                // Set quan hệ 2 chiều để Cascade hoạt động
-                detail.setPayment(payment); 
-                detail.setSubject(subjectRepository.findById(sub.getSubjectId()).orElse(null));
-                
+                Subject s = new Subject(); s.setId(sub.getSubjectId());
+                detail.setSubject(s);
+
                 detail.setTotalHours(sub.getTotalHours());
                 detail.setTotalSessions(sub.getTotalSessions());
-                detail.setSalaryRate(sub.getSalaryRate()); // BigDecimal
-                detail.setTotalMoney(sub.getTotalMoney()); // BigDecimal
-                
+                detail.setSalaryRate(sub.getSalaryRate());
+                detail.setTotalMoney(sub.getTotalMoney());
+
                 details.add(detail);
             }
-            
-            // Gán details vào payment
-            payment.setPaymentDetails(details);
 
-            // Chỉ cần save Payment, Hibernate sẽ tự save Details nhờ CascadeType.ALL
+            payment.setPaymentDetails(details);
             savedPayments.add(teacherPaymentRepository.save(payment));
         }
         return savedPayments;
     }
 
-    /**
-     * 🧩 Thanh toán lương
-     */
+    // --- PHẦN 3: LẤY DANH SÁCH & LỌC (SEARCH/FILTER) ---
+    public List<TeacherPayment> getPaymentsWithFilter(int month, int year, String name, String status) {
+        return teacherPaymentRepository.searchPayments(month, year, name, status);
+    }
+
+    public TeacherPayment getTeacherSalaryDetail(Long teacherId, int month, int year) {
+        return teacherPaymentRepository.findByTeacherIdAndMonthAndYear(teacherId, month, year)
+                .orElse(null);
+    }
+
+    // --- PHẦN 4: THANH TOÁN (PAYMENT - PARTIAL) ---
+    // Hỗ trợ trả từng phần hoặc trả hết 1 cục
     @Transactional
-    public TeacherPayment payTeacherSalary(Long teacherId, int month, int year) {
-        String noteIdentifier = String.format("Lương tháng %d/%d", month, year);
-        
-        TeacherPayment payment = teacherPaymentRepository.findByTeacherIdAndNotesContaining(teacherId, noteIdentifier)
+    public TeacherPayment payTeacherSalary(Long paymentId, BigDecimal paymentAmount) {
+        TeacherPayment payment = teacherPaymentRepository.findById(paymentId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy bảng lương!"));
 
-        if ("paid".equals(payment.getStatus())) {
-            throw new RuntimeException("Bảng lương đã được thanh toán!");
+        if (paymentAmount == null || paymentAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("Số tiền thanh toán phải lớn hơn 0");
         }
 
-        payment.setStatus("paid");
+        // 1. Cộng dồn tiền đã trả
+        BigDecimal currentPaid = payment.getPaidAmount() != null ? payment.getPaidAmount() : BigDecimal.ZERO;
+        BigDecimal newPaidTotal = currentPaid.add(paymentAmount);
+
+        // 2. Không cho trả dư quá tổng lương (Optional logic)
+        if (newPaidTotal.compareTo(payment.getAmount()) > 0) {
+            newPaidTotal = payment.getAmount();
+        }
+
+        payment.setPaidAmount(newPaidTotal);
         payment.setPaymentDate(LocalDate.now());
+
+        // 3. Cập nhật trạng thái
+        BigDecimal remaining = payment.getAmount().subtract(newPaidTotal);
+
+        if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+            payment.setStatus("paid"); // Hết nợ
+        } else if (newPaidTotal.compareTo(BigDecimal.ZERO) > 0) {
+            payment.setStatus("partial"); // Trả một phần
+        } else {
+            payment.setStatus("unpaid");
+        }
+
         return teacherPaymentRepository.save(payment);
     }
 
-    // Các hàm GET giữ nguyên
-    public TeacherPayment getTeacherSalaryDetail(Long teacherId, int month, int year) {
-        String noteIdentifier = String.format("Lương tháng %d/%d", month, year);
-        return teacherPaymentRepository.findByTeacherIdAndNotesContaining(teacherId, noteIdentifier)
-                .orElse(null);
-    }
-    
-    public List<TeacherPayment> getPaymentsByMonth(int month, int year) {
-        String noteIdentifier = String.format("Lương tháng %d/%d", month, year);
-        return teacherPaymentRepository.findByNotesContaining(noteIdentifier);
+    // --- PHẦN 5: CHỈNH SỬA CHI TIẾT (EDIT & AUTO-CALC) ---
+    @Transactional
+    public TeacherPayment updatePaymentDetail(TeacherPaymentDetailUpdateRequest request) {
+        // 1. Tìm chi tiết
+        TeacherPaymentDetail detail = teacherPaymentDetailRepository.findById(request.getDetailId())
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy chi tiết lương"));
+
+        // A. Nếu sửa số buổi -> Tự động tính lại giờ và tiền
+        if (request.getTotalSessions() != null) {
+            int oldSessions = detail.getTotalSessions() != null ? detail.getTotalSessions() : 0;
+            float oldTotalHours = detail.getTotalHours() != null ? detail.getTotalHours() : 0f;
+            int newSessions = request.getTotalSessions();
+
+            // Tính thời lượng trung bình 1 buổi (Hours per session)
+            float hoursPerSession = 0;
+            if (oldSessions > 0) {
+                hoursPerSession = oldTotalHours / oldSessions;
+            } else {
+                hoursPerSession = 1.5f; // Mặc định nếu dữ liệu cũ bị lỗi
+            }
+
+            float newTotalHours = hoursPerSession * newSessions;
+            
+            detail.setTotalSessions(newSessions);
+            detail.setTotalHours(newTotalHours);
+
+            // Tự động tính tiền (New Hours * Rate)
+            BigDecimal rate = detail.getSalaryRate() != null ? detail.getSalaryRate() : BigDecimal.ZERO;
+            BigDecimal calculatedMoney = BigDecimal.valueOf(newTotalHours)
+                                            .multiply(rate)
+                                            .setScale(0, RoundingMode.HALF_UP);
+            
+            detail.setTotalMoney(calculatedMoney);
+        }
+
+        // B. Manual Override (Nếu người dùng nhập tiền tay -> Ghi đè)
+        if (request.getTotalMoney() != null) {
+            detail.setTotalMoney(request.getTotalMoney());
+        }
+
+        // C. Update note
+        if (request.getNote() != null) {
+            detail.setNote(request.getNote());
+        }
+
+        // Lưu chi tiết
+        teacherPaymentDetailRepository.save(detail);
+
+        // 2. Tính lại tổng tiền cho bảng lương cha (TeacherPayment)
+        TeacherPayment parentPayment = detail.getPayment();
+        BigDecimal newTotalAmount = BigDecimal.ZERO;
+
+        for (TeacherPaymentDetail d : parentPayment.getPaymentDetails()) {
+            if (d.getId().equals(detail.getId())) {
+                newTotalAmount = newTotalAmount.add(detail.getTotalMoney());
+            } else {
+                newTotalAmount = newTotalAmount.add(d.getTotalMoney());
+            }
+        }
+        parentPayment.setAmount(newTotalAmount);
+
+        // 3. Cập nhật trạng thái thanh toán (Paid/Partial/Unpaid)
+        BigDecimal paid = parentPayment.getPaidAmount() != null ? parentPayment.getPaidAmount() : BigDecimal.ZERO;
+        
+        if (paid.compareTo(newTotalAmount) >= 0) {
+            parentPayment.setStatus("paid");
+        } else if (paid.compareTo(BigDecimal.ZERO) > 0) {
+            parentPayment.setStatus("partial");
+        } else {
+            parentPayment.setStatus("unpaid");
+        }
+
+        return teacherPaymentRepository.save(parentPayment);
     }
 }

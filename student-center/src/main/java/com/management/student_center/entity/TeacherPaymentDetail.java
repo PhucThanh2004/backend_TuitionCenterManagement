@@ -33,6 +33,9 @@ public class TeacherPaymentDetail {
     private LocalDateTime updatedAt = LocalDateTime.now();
     
     // Vẫn giữ PreUpdate để khi sửa đổi nó tự cập nhật lại
+    @Column(columnDefinition = "TEXT")
+    private String note; // Thêm ghi chú cho chi tiết môn học
+    
     @PreUpdate
     public void preUpdate() {
         this.updatedAt = LocalDateTime.now();
@@ -60,4 +63,6 @@ public class TeacherPaymentDetail {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    public String getNote() { return note; }
+    public void setNote(String note) { this.note = note; }
 }
