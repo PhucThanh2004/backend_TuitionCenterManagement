@@ -18,6 +18,15 @@ public interface TeacherPaymentRepository extends JpaRepository<TeacherPayment, 
 	Optional<TeacherPayment> findByTeacherIdAndNotesContaining(Long teacherId, String notePart);
 
 	boolean existsByTeacherIdAndMonthAndYear(Long teacherId, int month, int year);
+	
+
+    @Query("""
+        SELECT COUNT(tp) 
+        FROM TeacherPayment tp
+        WHERE tp.teacher.id = :teacherId
+          AND (tp.status = 'unpaid' OR tp.status = 'partial')
+    """)
+    long countUnpaidByTeacher(@Param("teacherId") Long teacherId);
 
 	// Tìm chi tiết 1 bảng lương
 	Optional<TeacherPayment> findByTeacherIdAndMonthAndYear(Long teacherId, int month, int year);

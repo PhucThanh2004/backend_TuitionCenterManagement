@@ -16,6 +16,7 @@ public class TeacherPaymentDetail {
     private Float totalHours;
     private Integer totalSessions;
     private BigDecimal salaryRate;
+    private BigDecimal bonus = BigDecimal.ZERO;
     private BigDecimal totalMoney;
 
     @ManyToOne
@@ -55,6 +56,11 @@ public class TeacherPaymentDetail {
     public void setSalaryRate(BigDecimal salaryRate) { this.salaryRate = salaryRate; }
     public BigDecimal getTotalMoney() { return totalMoney; }
     public void setTotalMoney(BigDecimal totalMoney) { this.totalMoney = totalMoney; }
+    public BigDecimal getBonus() { return bonus; }
+    public void setBonus(BigDecimal bonus) { 
+        // Nếu truyền null thì gán về 0 để an toàn
+        this.bonus = (bonus != null) ? bonus : BigDecimal.ZERO; 
+    }
     public TeacherPayment getPayment() { return payment; }
     public void setPayment(TeacherPayment payment) { this.payment = payment; }
     public Subject getSubject() { return subject; }

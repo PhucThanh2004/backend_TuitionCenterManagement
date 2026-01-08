@@ -6,6 +6,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.hibernate.annotations.CreationTimestamp;
+
 @Entity
 @Table(name = "students")
 public class Student {
@@ -41,8 +43,10 @@ public class Student {
     private List<StudentSubject> studentSubjects;
 
     // Thêm createdAt và updatedAt
+    @CreationTimestamp
     private LocalDateTime createdAt;
 
+    @CreationTimestamp
     private LocalDateTime updatedAt;
 
     // Constructor mặc định

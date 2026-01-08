@@ -215,69 +215,87 @@ public class SubjectService {
 	// ------------------- UPDATE SUBJECT -------------------
 	@Transactional
 	public void updateSubject(Long id, UpdateSubjectRequest updatedData) {
-		// 1. Lấy môn học
-		Subject subject = subjectRepository.findById(id)
-				.orElseThrow(() -> new RuntimeException("Không tìm thấy môn học"));
 
-		// 2. Cập nhật thông tin môn học
-		subject.setName(updatedData.getName());
-		subject.setGrade(updatedData.getGrade());
+	    // 1. Lấy môn học
+	    Subject subject = subjectRepository.findById(id)
+	            .orElseThrow(() -> new RuntimeException("Không tìm thấy môn học"));
 
-		// Chuyển Double -> BigDecimal, nếu null thì giữ nguyên
-		if (updatedData.getPrice() != null) {
-			subject.setPrice(BigDecimal.valueOf(updatedData.getPrice()));
-		}
+	    // ====== CHECK ĐỔI GIÁO VIÊN KHI CÒN NỢ LƯƠNG ======
+	    Long newTeacherId = updatedData.getTeacherId();
 
-		subject.setStatus(updatedData.getStatus());
-		subject.setMaxStudents(updatedData.getMaxStudents());
-		subject.setSessionsPerWeek(updatedData.getSessionsPerWeek());
-		subject.setNote(updatedData.getNote());
+	    TeacherSubject existingTS =
+	            teacherSubjectRepository.findBySubjectId(id).orElse(null);
 
-		subjectRepository.save(subject);
+	    Long currentTeacherId =
+	            existingTS != null ? existingTS.getTeacher().getId() : null;
 
-		// 3. Chuẩn hóa teacherId
-		Long teacherIdNorm = updatedData.getTeacherId();
+	    boolean isChangingTeacher =
+	            !Objects.equals(currentTeacherId, newTeacherId);
 
-		// Kiểm tra TeacherSubject hiện có
-		TeacherSubject existingTS = teacherSubjectRepository.findBySubjectId(id).orElse(null);
+	    if (isChangingTeacher && existingTS != null) {
+	        long unpaidSalary =
+	                teacherPaymentDetailRepository.countUnpaidBySubject(id);
 
-		if (existingTS != null) {
-			if (teacherIdNorm == null) {
-				// Nếu không còn giáo viên gán -> xóa quan hệ
-				teacherSubjectRepository.delete(existingTS);
-			} else {
-				// Cập nhật quan hệ giáo viên hiện tại
-				Teacher teacher = teacherRepository.findById(teacherIdNorm)
-						.orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên"));
-				existingTS.setTeacher(teacher);
+	        if (unpaidSalary > 0) {
+	            throw new IllegalStateException("TEACHER_UNPAID_CHANGE");
+	        }
+	    }
+	    // ====== END CHECK ======
 
-				// Cập nhật salaryRate nếu có, ngược lại giữ nguyên
-				BigDecimal newSalary = updatedData.getSalaryRate() != null
-						? BigDecimal.valueOf(updatedData.getSalaryRate())
-						: existingTS.getSalaryRate();
-				existingTS.setSalaryRate(newSalary);
+	    // 2. Cập nhật thông tin môn học
+	    subject.setName(updatedData.getName());
+	    subject.setGrade(updatedData.getGrade());
 
-				teacherSubjectRepository.save(existingTS);
-			}
-		} else {
-			// Nếu chưa có TeacherSubject nhưng teacherId != null -> tạo mới
-			if (teacherIdNorm != null) {
-				Teacher teacher = teacherRepository.findById(teacherIdNorm)
-						.orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên"));
-				TeacherSubject ts = new TeacherSubject();
-				ts.setSubject(subject);
-				ts.setTeacher(teacher);
+	    if (updatedData.getPrice() != null) {
+	        subject.setPrice(BigDecimal.valueOf(updatedData.getPrice()));
+	    }
 
-				// Nếu salaryRate null -> mặc định 0
-				BigDecimal newSalary = updatedData.getSalaryRate() != null
-						? BigDecimal.valueOf(updatedData.getSalaryRate())
-						: BigDecimal.ZERO;
-				ts.setSalaryRate(newSalary);
+	    subject.setStatus(updatedData.getStatus());
+	    subject.setMaxStudents(updatedData.getMaxStudents());
+	    subject.setSessionsPerWeek(updatedData.getSessionsPerWeek());
+	    subject.setNote(updatedData.getNote());
 
-				teacherSubjectRepository.save(ts);
-			}
-		}
+	    subjectRepository.save(subject);
+
+	    // 3. Chuẩn hóa teacherId
+	    Long teacherIdNorm = updatedData.getTeacherId();
+
+	    if (existingTS != null) {
+	        if (teacherIdNorm == null) {
+	            // Nếu bỏ giáo viên
+	            teacherSubjectRepository.delete(existingTS);
+	        } else {
+	            // Cập nhật giáo viên
+	            Teacher teacher = teacherRepository.findById(teacherIdNorm)
+	                    .orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên"));
+	            existingTS.setTeacher(teacher);
+
+	            BigDecimal newSalary = updatedData.getSalaryRate() != null
+	                    ? BigDecimal.valueOf(updatedData.getSalaryRate())
+	                    : existingTS.getSalaryRate();
+	            existingTS.setSalaryRate(newSalary);
+
+	            teacherSubjectRepository.save(existingTS);
+	        }
+	    } else {
+	        // Chưa có TeacherSubject nhưng có teacherId → tạo mới
+	        if (teacherIdNorm != null) {
+	            Teacher teacher = teacherRepository.findById(teacherIdNorm)
+	                    .orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên"));
+	            TeacherSubject ts = new TeacherSubject();
+	            ts.setSubject(subject);
+	            ts.setTeacher(teacher);
+
+	            BigDecimal newSalary = updatedData.getSalaryRate() != null
+	                    ? BigDecimal.valueOf(updatedData.getSalaryRate())
+	                    : BigDecimal.ZERO;
+	            ts.setSalaryRate(newSalary);
+
+	            teacherSubjectRepository.save(ts);
+	        }
+	    }
 	}
+
 
 	@Transactional
 	public Subject createSubject(CreateSubjectRequest request) throws Exception {

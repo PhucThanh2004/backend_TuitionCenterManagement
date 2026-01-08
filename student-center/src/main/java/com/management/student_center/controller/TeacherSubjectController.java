@@ -22,9 +22,13 @@ public class TeacherSubjectController {
     }
 
     @GetMapping
-    public ResponseEntity<Map<String, Object>> getAll() {
+    public ResponseEntity<Map<String, Object>> getAll(
+    		@RequestParam(required = false) Integer grade,
+            @RequestParam(required = false) String teacherName,
+            @RequestParam(required = false) String subjectName
+            ) {
         try {
-            List<TeacherSubjectResponseDTO> list = service.getAllTeacherSubjects();
+            List<TeacherSubjectResponseDTO> list = service.searchTeacherSubjects(grade, teacherName, subjectName);
             return createSuccessResponse(list);
         } catch (Exception e) {
             return createErrorResponse(e);

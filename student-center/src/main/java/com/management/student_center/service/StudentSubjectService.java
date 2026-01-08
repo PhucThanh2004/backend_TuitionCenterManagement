@@ -5,6 +5,7 @@ import com.management.student_center.entity.StudentSubject;
 import com.management.student_center.entity.Student;
 import com.management.student_center.entity.Subject;
 import com.management.student_center.repository.StudentSubjectRepository;
+import com.management.student_center.repository.StudentTuitionDetailRepository;
 import com.management.student_center.repository.StudentRepository;
 import com.management.student_center.repository.SubjectRepository;
 import org.springframework.stereotype.Service;
@@ -21,13 +22,20 @@ public class StudentSubjectService {
     private final StudentRepository studentRepository;
     private final SubjectRepository subjectRepository;
 
-    public StudentSubjectService(StudentSubjectRepository studentSubjectRepository,
-                                 StudentRepository studentRepository,
-                                 SubjectRepository subjectRepository) {
+    private final StudentTuitionDetailRepository studentTuitionDetailRepository;
+
+    public StudentSubjectService(
+            StudentSubjectRepository studentSubjectRepository,
+            StudentRepository studentRepository,
+            SubjectRepository subjectRepository,
+            StudentTuitionDetailRepository studentTuitionDetailRepository
+    ) {
         this.studentSubjectRepository = studentSubjectRepository;
         this.studentRepository = studentRepository;
         this.subjectRepository = subjectRepository;
+        this.studentTuitionDetailRepository = studentTuitionDetailRepository;
     }
+
 
     @Transactional(readOnly = true)
     public List<StudentDTO> getStudentsBySubjectId(Long subjectId) {
@@ -67,8 +75,25 @@ public class StudentSubjectService {
 
     @Transactional
     public void removeStudentFromSubject(Long studentId, Long subjectId) {
-        StudentSubject ss = studentSubjectRepository.findByStudentIdAndSubjectId(studentId, subjectId)
-                .orElseThrow(() -> new NoSuchElementException("Không tìm thấy học sinh trong môn học này"));
+
+        // 1. Kiểm tra học sinh có còn nợ học phí môn này không
+        long unpaidCount = studentTuitionDetailRepository
+                .countUnpaidByStudentAndSubject(studentId, subjectId);
+
+        if (unpaidCount > 0) {
+            throw new IllegalStateException(
+                    "Không thể xóa học sinh khỏi môn học vì còn nợ học phí"
+            );
+        }
+
+        // 2. Kiểm tra tồn tại quan hệ Student - Subject
+        StudentSubject ss = studentSubjectRepository
+                .findByStudentIdAndSubjectId(studentId, subjectId)
+                .orElseThrow(() ->
+                        new NoSuchElementException("Không tìm thấy học sinh trong môn học này")
+                );
+
+        // 3. Xóa quan hệ
         studentSubjectRepository.delete(ss);
     }
 

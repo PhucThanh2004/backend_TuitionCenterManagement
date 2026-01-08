@@ -95,21 +95,55 @@ public class SubjectController {
     }
     
     @PutMapping("/subjects/{id}")
-    public Map<String, Object> updateSubject(
+    public ResponseEntity<?> updateSubject(
             @PathVariable Long id,
             @RequestBody UpdateSubjectRequest updatedData
     ) {
-        Map<String, Object> response = new HashMap<>();
         try {
             subjectService.updateSubject(id, updatedData);
-            response.put("success", true);
-            response.put("message", "Cập nhật môn học thành công.");
+
+            return ResponseEntity.ok(
+                    Map.of(
+                            "success", true,
+                            "message", "Cập nhật môn học thành công."
+                    )
+            );
+
+        } catch (IllegalStateException e) {
+
+            String message;
+
+            switch (e.getMessage()) {
+                case "TEACHER_UNPAID_CHANGE":
+                    message = "Không thể thay đổi giáo viên vì vẫn còn lương chưa thanh toán.";
+                    break;
+                default:
+                    message = "Cập nhật môn học thất bại.";
+            }
+
+            return ResponseEntity
+                    .badRequest()
+                    .body(
+                            Map.of(
+                                    "success", false,
+                                    "code", e.getMessage(),
+                                    "message", message
+                            )
+                    );
+
         } catch (Exception e) {
-            response.put("success", false);
-            response.put("message", e.getMessage());
+
+            return ResponseEntity
+                    .internalServerError()
+                    .body(
+                            Map.of(
+                                    "success", false,
+                                    "message", e.getMessage()
+                            )
+                    );
         }
-        return response;
     }
+
     @PostMapping("/subjects")
     public Map<String, Object> createSubject(
             @ModelAttribute CreateSubjectRequest request

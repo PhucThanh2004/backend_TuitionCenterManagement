@@ -7,6 +7,7 @@ import com.management.student_center.entity.*;
 import com.management.student_center.repository.*;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -36,6 +37,7 @@ public class StudentService {
     private final PasswordEncoder passwordEncoder;
     private final ImageService imageService;
 
+    private final StudentTuitionDetailRepository studentTuitionDetailRepository;
     // Mapping role
     private static final Map<String, String> roleMapping = Map.of(
         "R0", "Admin",
@@ -49,7 +51,8 @@ public class StudentService {
                           ParentContactRepository parentContactRepository,
                           StudentSubjectRepository studentSubjectRepository,
                           PasswordEncoder passwordEncoder,
-                          ImageService imageService) {
+                          ImageService imageService,
+                          StudentTuitionDetailRepository studentTuitionDetailRepository) {
         this.studentRepository = studentRepository;
         this.userRepository = userRepository;
         this.addressRepository = addressRepository;
@@ -57,6 +60,7 @@ public class StudentService {
         this.studentSubjectRepository = studentSubjectRepository;
         this.passwordEncoder = passwordEncoder;
         this.imageService = imageService;
+        this.studentTuitionDetailRepository = studentTuitionDetailRepository;
     }
     
     public StudentGroupResponseDTO getAllStudentsGroupBySchool(Map<String, String> filters) {
@@ -288,34 +292,42 @@ public class StudentService {
     public void deleteStudent(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng!"));
-        
+
         Optional<Student> studentOpt = studentRepository.findByUserInfoId(userId);
         if (studentOpt.isPresent()) {
             Student student = studentOpt.get();
-            
+
+            // --- BỔ SUNG: Kiểm tra học phí ---
+            long unpaidCount = studentTuitionDetailRepository.countUnpaidByStudent(student.getId());
+            if (unpaidCount > 0) {
+                throw new IllegalStateException(
+                    "Không thể xóa học sinh vì còn nợ học phí"
+                );
+            }
+
             // Xóa ParentContacts
             parentContactRepository.deleteByStudentId(student.getId());
-            
-            // Xóa StudentSubjects (môn học đã đăng ký)
+
+            // Xóa StudentSubjects
             studentSubjectRepository.deleteByStudentId(student.getId());
-            
+
             // Xóa Address
             if (student.getAddressInfo() != null) {
                 addressRepository.delete(student.getAddressInfo());
             }
-            
-            // Xóa Student (thực ra Cascade User -> Student có thể lo việc này, nhưng làm thủ công cho chắc)
+
+            // Xóa Student
             studentRepository.delete(student);
         }
-
         // Xóa ảnh
         if (user.getImage() != null) {
             imageService.deleteImage(user.getImage());
         }
-        
+
         // Xóa User
         userRepository.delete(user);
     }
+
 
     /**
      * deleteMultipleStudents
@@ -324,12 +336,9 @@ public class StudentService {
     public void deleteMultipleStudents(List<Long> userIds) {
         if (userIds == null || userIds.isEmpty()) throw new RuntimeException("Danh sách ID trống!");
         for (Long id : userIds) {
-            try {
+            
                 deleteStudent(id);
-            } catch (Exception e) {
-                // Log lỗi nhưng có thể tiếp tục hoặc throw tùy nghiệp vụ
-                System.err.println("Lỗi xóa học viên ID " + id + ": " + e.getMessage());
-            }
+           
         }
     }
 

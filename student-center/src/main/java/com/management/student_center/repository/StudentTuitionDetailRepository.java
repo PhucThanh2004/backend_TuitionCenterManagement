@@ -17,4 +17,26 @@ public interface StudentTuitionDetailRepository extends JpaRepository<StudentTui
           AND (st.status = 'unpaid' OR st.status = 'partial')
     """)
     long countUnpaidBySubject(@Param("subjectId") Long subjectId);
+    
+    @Query("""
+            SELECT COUNT(std)
+            FROM StudentTuitionDetail std
+            JOIN std.studentTuition st
+            WHERE std.subject.id = :subjectId
+              AND st.student.id = :studentId
+              AND (st.status = 'unpaid' OR st.status = 'partial')
+        """)
+        long countUnpaidByStudentAndSubject(
+                @Param("studentId") Long studentId,
+                @Param("subjectId") Long subjectId
+        );
+    
+    @Query("""
+            SELECT COUNT(std)
+            FROM StudentTuitionDetail std
+            JOIN std.studentTuition st
+            WHERE st.student.id = :studentId
+              AND (st.status = 'unpaid' OR st.status = 'partial')
+        """)
+        long countUnpaidByStudent(@Param("studentId") Long studentId);
 }

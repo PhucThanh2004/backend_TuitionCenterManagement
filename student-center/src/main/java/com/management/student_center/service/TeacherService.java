@@ -47,16 +47,18 @@ public class TeacherService {
 	private final PasswordEncoder passwordEncoder;
 	private final ImageService imageService;
 	private static final Map<String, String> roleMapping = Map.of("R0", "Admin", "R1", "Giáo viên", "R2", "Học sinh");
+	private final TeacherPaymentRepository teacherPaymentRepository;
 
 	public TeacherService(TeacherRepository teacherRepository, UserRepository userRepository,
 			AddressRepository addressRepository, StudentRepository studentRepository, PasswordEncoder passwordEncoder,
-			ImageService imageService) {
+			ImageService imageService, TeacherPaymentRepository teacherPaymentRepository) {
 		this.teacherRepository = teacherRepository;
 		this.userRepository = userRepository;
 		this.addressRepository = addressRepository;
 		this.studentRepository = studentRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.imageService = imageService;
+		this.teacherPaymentRepository = teacherPaymentRepository;
 	}
 
 	public PaginatedResponseDTO<TeacherDTO> getAllTeachers(int page, int limit, Map<String, String> filters) {
@@ -174,34 +176,32 @@ public class TeacherService {
 
 	@Transactional
 	public void deleteEmployee(Long userId) {
-		// 1. Tìm User
-		User user = userRepository.findById(userId)
-				.orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng!"));
+	    User user = userRepository.findById(userId)
+	            .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng!"));
 
-		// 2. Xóa ảnh (nếu có)
-		if (user.getImage() != null) {
-			imageService.deleteImage(user.getImage());
-		}
+	    Optional<Teacher> teacherOpt = teacherRepository.findByUserInfoId(userId);
+	    if (teacherOpt.isPresent()) {
+	        Teacher teacher = teacherOpt.get();
 
-		// 3. Tìm và xóa Teacher + Address của Teacher trước
-		Optional<Teacher> teacherOpt = teacherRepository.findByUserInfoId(userId);
-		if (teacherOpt.isPresent()) {
-			Teacher teacher = teacherOpt.get();
+	        // Kiểm tra lương chưa thanh toán bằng repository
+	        long unpaidCount = teacherPaymentRepository.countUnpaidByTeacher(teacher.getId());
+	        if (unpaidCount > 0) {
+	            throw new RuntimeException(
+	                "Không thể xóa giáo viên này vì vẫn còn lương chưa thanh toán.");
+	        }
 
-			// Xóa địa chỉ của Teacher trước (nếu không setup Cascade ở Entity)
-			if (teacher.getAddressInfo() != null) {
-				addressRepository.delete(teacher.getAddressInfo());
-			}
+	        if (teacher.getAddressInfo() != null) {
+	            addressRepository.delete(teacher.getAddressInfo());
+	        }
+	        teacherRepository.delete(teacher);
+	    }
 
-			// QUAN TRỌNG: Xóa bản ghi Teacher
-			teacherRepository.delete(teacher);
-		}
-
-		// (Nếu có logic cho Student thì làm tương tự ở đây...)
-
-		// 4. Cuối cùng mới xóa User
-		userRepository.delete(user);
+	    if (user.getImage() != null) {
+	        imageService.deleteImage(user.getImage());
+	    }
+	    userRepository.delete(user);
 	}
+
 
 	/**
 	 * Tương đương: deleteMultipleTeachers

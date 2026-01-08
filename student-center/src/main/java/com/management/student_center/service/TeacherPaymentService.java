@@ -191,70 +191,81 @@ public class TeacherPaymentService {
     }
 
     // --- PHẦN 5: CHỈNH SỬA CHI TIẾT (EDIT & AUTO-CALC) ---
+ // Trong class TeacherPaymentService.java
+
     @Transactional
     public TeacherPayment updatePaymentDetail(TeacherPaymentDetailUpdateRequest request) {
-        // 1. Tìm chi tiết
+        // 1. Tìm chi tiết lương
         TeacherPaymentDetail detail = teacherPaymentDetailRepository.findById(request.getDetailId())
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy chi tiết lương"));
 
-        // A. Nếu sửa số buổi -> Tự động tính lại giờ và tiền
+        // --- BƯỚC 1: CẬP NHẬT SỐ BUỔI & GIỜ (Nếu có thay đổi) ---
         if (request.getTotalSessions() != null) {
             int oldSessions = detail.getTotalSessions() != null ? detail.getTotalSessions() : 0;
             float oldTotalHours = detail.getTotalHours() != null ? detail.getTotalHours() : 0f;
             int newSessions = request.getTotalSessions();
 
-            // Tính thời lượng trung bình 1 buổi (Hours per session)
-            float hoursPerSession = 0;
-            if (oldSessions > 0) {
-                hoursPerSession = oldTotalHours / oldSessions;
-            } else {
-                hoursPerSession = 1.5f; // Mặc định nếu dữ liệu cũ bị lỗi
-            }
-
+            // Tính lại giờ: Giữ nguyên logic tính trung bình của bạn
+            float hoursPerSession = (oldSessions > 0) ? (oldTotalHours / oldSessions) : 1.5f; 
             float newTotalHours = hoursPerSession * newSessions;
             
             detail.setTotalSessions(newSessions);
             detail.setTotalHours(newTotalHours);
-
-            // Tự động tính tiền (New Hours * Rate)
-            BigDecimal rate = detail.getSalaryRate() != null ? detail.getSalaryRate() : BigDecimal.ZERO;
-            BigDecimal calculatedMoney = BigDecimal.valueOf(newTotalHours)
-                                            .multiply(rate)
-                                            .setScale(0, RoundingMode.HALF_UP);
-            
-            detail.setTotalMoney(calculatedMoney);
         }
 
-        // B. Manual Override (Nếu người dùng nhập tiền tay -> Ghi đè)
-        if (request.getTotalMoney() != null) {
-            detail.setTotalMoney(request.getTotalMoney());
+        // --- BƯỚC 2: CẬP NHẬT THƯỞNG (BONUS) (Nếu có) ---
+        // Giả sử Entity TeacherPaymentDetail cần thêm cột 'bonus'. 
+        // Nếu chưa có cột bonus trong DB, ta dùng tạm logic cộng dồn vào totalMoney, 
+        // nhưng tốt nhất là nên thêm cột 'bonus' vào Entity.
+        
+        // Ở đây mình giả định bạn ĐÃ THÊM cột 'bonus' vào Entity TeacherPaymentDetail
+        if (request.getBonus() != null) {
+            detail.setBonus(request.getBonus());
         }
+        
+        // Lấy giá trị hiện tại để tính toán
+        BigDecimal currentBonus = detail.getBonus() != null ? detail.getBonus() : BigDecimal.ZERO;
+        BigDecimal currentRate = detail.getSalaryRate() != null ? detail.getSalaryRate() : BigDecimal.ZERO;
+        float currentHours = detail.getTotalHours() != null ? detail.getTotalHours() : 0f;
 
-        // C. Update note
+        // --- BƯỚC 3: TÍNH LẠI TỔNG TIỀN (Công thức chuẩn) ---
+        // Tiền dạy = Giờ * Đơn giá
+        BigDecimal baseSalary = BigDecimal.valueOf(currentHours)
+                .multiply(currentRate)
+                .setScale(0, RoundingMode.HALF_UP);
+
+        // Tổng tiền = Tiền dạy + Thưởng
+        BigDecimal finalTotalMoney = baseSalary.add(currentBonus);
+        
+        detail.setTotalMoney(finalTotalMoney);
+
+        // --- BƯỚC 4: CẬP NHẬT GHI CHÚ ---
         if (request.getNote() != null) {
             detail.setNote(request.getNote());
         }
 
-        // Lưu chi tiết
         teacherPaymentDetailRepository.save(detail);
 
-        // 2. Tính lại tổng tiền cho bảng lương cha (TeacherPayment)
+        // --- BƯỚC 5: TÍNH LẠI TỔNG TIỀN CHO HÓA ĐƠN CHA (TeacherPayment) ---
+        // Logic này của bạn đã đúng, giữ nguyên
         TeacherPayment parentPayment = detail.getPayment();
-        BigDecimal newTotalAmount = BigDecimal.ZERO;
+        BigDecimal newParentTotal = BigDecimal.ZERO;
 
         for (TeacherPaymentDetail d : parentPayment.getPaymentDetails()) {
+            // Lưu ý: d nằm trong list có thể là instance cũ chưa cập nhật, 
+            // nên cần check ID để lấy giá trị mới nhất vừa set
             if (d.getId().equals(detail.getId())) {
-                newTotalAmount = newTotalAmount.add(detail.getTotalMoney());
+                newParentTotal = newParentTotal.add(detail.getTotalMoney());
             } else {
-                newTotalAmount = newTotalAmount.add(d.getTotalMoney());
+                newParentTotal = newParentTotal.add(d.getTotalMoney());
             }
         }
-        parentPayment.setAmount(newTotalAmount);
+        parentPayment.setAmount(newParentTotal);
 
-        // 3. Cập nhật trạng thái thanh toán (Paid/Partial/Unpaid)
+        // Cập nhật trạng thái thanh toán (Paid/Unpaid)
         BigDecimal paid = parentPayment.getPaidAmount() != null ? parentPayment.getPaidAmount() : BigDecimal.ZERO;
         
-        if (paid.compareTo(newTotalAmount) >= 0) {
+        if (paid.compareTo(newParentTotal) >= 0) {
             parentPayment.setStatus("paid");
         } else if (paid.compareTo(BigDecimal.ZERO) > 0) {
             parentPayment.setStatus("partial");

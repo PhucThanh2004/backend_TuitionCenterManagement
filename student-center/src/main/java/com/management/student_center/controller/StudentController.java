@@ -176,10 +176,18 @@ public class StudentController {
             
             return ResponseEntity.ok(response);
 
+        } catch (IllegalStateException e) {
+            // Học sinh còn nợ học phí → CONFLICT 409
+            return createErrorResponse(e, 409);
+        } catch (RuntimeException e) {
+            // Không tìm thấy học sinh, lỗi nghiệp vụ → NOT FOUND 404
+            return createErrorResponse(e, 404);
         } catch (Exception e) {
-            return createErrorResponse(e);
+            // Lỗi khác → BAD REQUEST 400 hoặc INTERNAL SERVER ERROR 500
+            return createErrorResponse(e, 400);
         }
     }
+
 
     /**
      * === handleDeleteMultipleStudents ===

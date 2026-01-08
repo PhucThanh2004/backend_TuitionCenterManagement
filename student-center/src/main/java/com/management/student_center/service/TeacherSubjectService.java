@@ -39,6 +39,22 @@ public class TeacherSubjectService {
         this.subjectRepository = subjectRepository;
     }
 
+    public List<TeacherSubjectResponseDTO> searchTeacherSubjects(
+            Integer grade,
+            String teacherName,
+            String subjectName
+    ) {
+        List<TeacherSubject> list = teacherSubjectRepository.findByCriteria(
+                grade,
+                teacherName,
+                subjectName
+        );
+
+        return list.stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
+    }
+
     /**
      * 🧩 Tạo mới thỏa thuận lương
      */
