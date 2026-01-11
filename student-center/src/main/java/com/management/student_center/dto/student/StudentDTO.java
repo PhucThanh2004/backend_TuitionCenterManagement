@@ -22,7 +22,10 @@ public class StudentDTO {
     private AddressDTO address;
     private List<ParentContactDTO> parents;
     // Có thể thêm List<SubjectDTO> subjects nếu cần
-
+    private List<SubjectInfoDTO> subjects;
+    
+    public List<SubjectInfoDTO> getSubjects() { return subjects; }
+    public void setSubjects(List<SubjectInfoDTO> subjects) { this.subjects = subjects; }
     // Thêm trường createdAt và updatedAt
     private LocalDateTime createdAt;  // Thêm createdAt
     private LocalDateTime updatedAt;  // Thêm updatedAt
@@ -73,4 +76,22 @@ public class StudentDTO {
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    
+    public static class SubjectInfoDTO {
+        private Long id;
+        private String name;
+
+        public SubjectInfoDTO() {}
+
+        public SubjectInfoDTO(Long id, String name) {
+            this.id = id;
+            this.name = name;
+        }
+
+        public Long getId() { return id; }
+        public void setId(Long id) { this.id = id; }
+
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+    }
 }

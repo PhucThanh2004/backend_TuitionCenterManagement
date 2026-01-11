@@ -36,7 +36,7 @@ public class StudentService {
     private final StudentSubjectRepository studentSubjectRepository;
     private final PasswordEncoder passwordEncoder;
     private final ImageService imageService;
-
+    private final StudentTuitionRepository studentTuitionRepository;
     private final StudentTuitionDetailRepository studentTuitionDetailRepository;
     // Mapping role
     private static final Map<String, String> roleMapping = Map.of(
@@ -52,7 +52,8 @@ public class StudentService {
                           StudentSubjectRepository studentSubjectRepository,
                           PasswordEncoder passwordEncoder,
                           ImageService imageService,
-                          StudentTuitionDetailRepository studentTuitionDetailRepository) {
+                          StudentTuitionDetailRepository studentTuitionDetailRepository,
+                          StudentTuitionRepository studentTuitionRepository) {
         this.studentRepository = studentRepository;
         this.userRepository = userRepository;
         this.addressRepository = addressRepository;
@@ -61,6 +62,7 @@ public class StudentService {
         this.passwordEncoder = passwordEncoder;
         this.imageService = imageService;
         this.studentTuitionDetailRepository = studentTuitionDetailRepository;
+        this.studentTuitionRepository = studentTuitionRepository;
     }
     
     public StudentGroupResponseDTO getAllStudentsGroupBySchool(Map<String, String> filters) {
@@ -431,7 +433,15 @@ public class StudentService {
             addressDTO.setWard(address.getWard());
             addressDTO.setProvince(address.getProvince());
         }
-
+        List<StudentSubject> studentSubjects = studentSubjectRepository.findByStudentId(student.getId());
+        
+        List<StudentDTO.SubjectInfoDTO> subjectDTOs = studentSubjects.stream()
+                .map(ss -> new StudentDTO.SubjectInfoDTO(
+                        ss.getSubject().getId(), 
+                        ss.getSubject().getName()
+                ))
+                .collect(Collectors.toList());
+        
         List<ParentContactDTO> parentDTOs = student.getParentContacts().stream()
                 .map(p -> {
                     ParentContactDTO dto = new ParentContactDTO();
@@ -456,7 +466,7 @@ public class StudentService {
         dto.setSchoolName(student.getSchoolName());
         dto.setAddress(addressDTO);
         dto.setParents(parentDTOs);
-
+        dto.setSubjects(subjectDTOs);
         // Set createdAt và updatedAt
         dto.setCreatedAt(student.getCreatedAt());  // Set createdAt
         dto.setUpdatedAt(student.getUpdatedAt());  // Set updatedAt
