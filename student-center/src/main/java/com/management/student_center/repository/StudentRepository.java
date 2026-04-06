@@ -19,4 +19,7 @@ public interface StudentRepository extends JpaRepository<Student, Long>, JpaSpec
     
     // Đếm số học sinh được tạo trong khoảng thời gian
     long countByCreatedAtBetween( LocalDateTime start, LocalDateTime end);
+    
+    // Lấy 6 học sinh mới nhất
+    List<Student> findTop5ByOrderByCreatedAtDesc();
 }

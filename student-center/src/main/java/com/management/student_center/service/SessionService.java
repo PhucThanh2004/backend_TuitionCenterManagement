@@ -4,9 +4,12 @@ import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import com.management.student_center.dto.DailySessionDTO;
+import com.management.student_center.dto.UpcomingSessionDTO;
 import com.management.student_center.entity.Session;
 import com.management.student_center.entity.Subject;
 import com.management.student_center.repository.SessionRepository;
@@ -40,5 +43,10 @@ public class SessionService {
             );
 
         }).toList();
+    }
+    
+    public List<UpcomingSessionDTO> getTop4UpcomingSessions() {
+        Pageable pageable = PageRequest.of(0, 4);
+        return sessionRepository.findUpcomingSessions(pageable);
     }
 }

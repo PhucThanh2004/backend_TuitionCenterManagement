@@ -112,7 +112,7 @@ public class StudentController {
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return createErrorResponse(e, 404); // 404 Not Found nếu không thấy
+            return createErrorResponse(e, 404); 
         }
     }
 
@@ -267,5 +267,23 @@ public class StudentController {
         error.put("errCode", statusCode);
         error.put("message", e.getMessage() != null ? e.getMessage() : "Có lỗi xảy ra từ phía máy chủ!");
         return ResponseEntity.status(statusCode).body(error);
+    }
+    
+    // lấy 5 học sinh mới nhất
+    @GetMapping("/students/latest")
+    public ResponseEntity<Map<String, Object>> getLatestStudents() {
+        try {
+            List<StudentDTO> students = studentService.getLatestStudents();
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("errCode", 0);
+            response.put("message", "OK");
+            response.put("data", students);
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            return createErrorResponse(e);
+        }
     }
 }

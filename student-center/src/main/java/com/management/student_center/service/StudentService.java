@@ -132,6 +132,15 @@ public class StudentService {
 
         return response;
     }
+    
+    // Lấy 5 học sinh mới nhất
+    public List<StudentDTO> getLatestStudents() {
+        List<Student> students = studentRepository.findTop5ByOrderByCreatedAtDesc();
+
+        return students.stream()
+                .map(this::mapToStudentDTO)
+                .collect(Collectors.toList());
+    }
 
 
     /**

@@ -88,7 +88,7 @@ public class TeacherService {
 				.filter(t -> t.getUserInfo() != null && "R1".equals(t.getUserInfo().getRoleId()))
 				.map(t -> new TeacherBasicDTO(t.getId(), t.getUserInfo().getId(), t.getUserInfo().getFullName(),
 						t.getUserInfo().getEmail(), t.getUserInfo().getPhoneNumber(), t.getUserInfo().getGender(),
-						t.getSpecialty()))
+						t.getSpecialty(), t.getUserInfo().getImage()))
 				.collect(Collectors.toList());
 	}
 

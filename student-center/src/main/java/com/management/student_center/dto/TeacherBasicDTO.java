@@ -8,8 +8,9 @@ public class TeacherBasicDTO {
     private String phoneNumber;
     private Boolean gender;
     private String specialty;
+    private String image;
 
-    public TeacherBasicDTO(Long id, Long userId, String fullName, String email, String phoneNumber, Boolean gender, String specialty) {
+    public TeacherBasicDTO(Long id, Long userId, String fullName, String email, String phoneNumber, Boolean gender, String specialty, String image) {
         this.id = id;
         this.userId = userId;
         this.fullName = fullName;
@@ -17,6 +18,7 @@ public class TeacherBasicDTO {
         this.phoneNumber = phoneNumber;
         this.gender = gender;
         this.specialty = specialty;
+        this.image = image;
     }
 
     // Getter và Setter
@@ -40,4 +42,16 @@ public class TeacherBasicDTO {
 
     public String getSpecialty() { return specialty; }
     public void setSpecialty(String specialty) { this.specialty = specialty; }
+
+	public String getImage() {
+		return image;
+	}
+
+	public void setImage(String image) {
+		this.image = image;
+	}
+    
+    
 }
+
+

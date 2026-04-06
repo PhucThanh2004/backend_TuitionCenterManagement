@@ -14,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 import java.util.HashMap;
+import java.util.List;
 
 @RestController
 @RequestMapping("/v1/api")
@@ -169,6 +170,11 @@ public class SubjectController {
     @GetMapping("/subjects/statistics")
     public SubjectStatisticsDTO getSubjectStatistics() {
     	return subjectService.getSubjectStatistics();
+    }
+    
+    @GetMapping("/subjects/statistics/level")
+    public List<Map<String, Object>> getSubjectsByLevel() {
+        return subjectService.getSubjectsByLevel();
     }
 
 }

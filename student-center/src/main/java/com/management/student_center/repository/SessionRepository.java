@@ -1,10 +1,12 @@
 package com.management.student_center.repository;
 
 import com.management.student_center.dto.RoomScheduleDTO;
+import com.management.student_center.dto.UpcomingSessionDTO;
 import com.management.student_center.entity.Room;
 import com.management.student_center.entity.Session;
 import com.management.student_center.entity.Subject;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -171,4 +173,29 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
             AND s.status = 'scheduled'
         """)
         List<Session> findSessionsByDate(@Param("date") LocalDate date);
+    
+    // Lấy buổi học gần nhất so với thời điểm hiện t
+    @Query("""
+    	    SELECT new com.management.student_center.dto.UpcomingSessionDTO(
+    	        s.name,
+    	        s.grade,
+    	        u.fullName,
+    	        se.sessionDate,
+    	        se.startTime,
+    	        se.endTime
+    	    )
+    	    FROM Session se
+    	    JOIN se.subject s
+    	    LEFT JOIN s.teacherSubjects ts
+    	    LEFT JOIN ts.teacher t
+    	    LEFT JOIN t.userInfo u
+    	    WHERE 
+    	        (
+    	            se.sessionDate > CURRENT_DATE
+    	            OR (se.sessionDate = CURRENT_DATE AND se.startTime > CURRENT_TIME)
+    	        )
+    	        AND se.status = 'scheduled'
+    	    ORDER BY se.sessionDate ASC, se.startTime ASC
+    	""")
+    	List<UpcomingSessionDTO> findUpcomingSessions(Pageable pageable);
 }

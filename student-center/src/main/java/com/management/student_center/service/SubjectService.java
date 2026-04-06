@@ -42,13 +42,12 @@ public class SubjectService {
 
 	@Autowired
 	private TeacherRepository teacherRepository;
-	
+
 	@Autowired
 	private TeacherPaymentDetailRepository teacherPaymentDetailRepository;
 
 	@Autowired
 	private StudentTuitionDetailRepository studentTuitionDetailRepository;
-
 
 	public Map<String, Object> getSubjectsByUserId(int page, int limit, String status, Long userId) {
 
@@ -94,45 +93,44 @@ public class SubjectService {
 		response.put("stats", stats);
 		return response;
 	}
-	
+
 	// ------------------- GET ALL SUBJECTS (NO PAGINATION) -------------------
 	public Map<String, Object> getAllSubjectsNoPaging(String status) {
 
-	    List<Subject> subjects;
+		List<Subject> subjects;
 
-	    if (status != null) {
-	        subjects = subjectRepository.findByStatus(status);
-	    } else {
-	        subjects = subjectRepository.findAll();
-	    }
+		if (status != null) {
+			subjects = subjectRepository.findByStatus(status);
+		} else {
+			subjects = subjectRepository.findAll();
+		}
 
-	    List<SubjectDTO> subjectDTOs = subjects.stream().map(subject -> {
-	        SubjectDTO dto = mapToDTO(subject);
-	        long current = subjectRepository.countCurrentStudents(subject.getId());
-	        dto.setCurrentStudents(current);
-	        return dto;
-	    }).collect(Collectors.toList());
+		List<SubjectDTO> subjectDTOs = subjects.stream().map(subject -> {
+			SubjectDTO dto = mapToDTO(subject);
+			long current = subjectRepository.countCurrentStudents(subject.getId());
+			dto.setCurrentStudents(current);
+			return dto;
+		}).collect(Collectors.toList());
 
-	    long countAll = subjectRepository.count();
-	    long countActive = subjectRepository.countByStatus("active");
-	    long countUpcoming = subjectRepository.countByStatus("upcoming");
-	    long countEnded = subjectRepository.countByStatus("ended");
+		long countAll = subjectRepository.count();
+		long countActive = subjectRepository.countByStatus("active");
+		long countUpcoming = subjectRepository.countByStatus("upcoming");
+		long countEnded = subjectRepository.countByStatus("ended");
 
-	    Map<String, Long> stats = new HashMap<>();
-	    stats.put("all", countAll);
-	    stats.put("active", countActive);
-	    stats.put("upcoming", countUpcoming);
-	    stats.put("ended", countEnded);
+		Map<String, Long> stats = new HashMap<>();
+		stats.put("all", countAll);
+		stats.put("active", countActive);
+		stats.put("upcoming", countUpcoming);
+		stats.put("ended", countEnded);
 
-	    Map<String, Object> response = new HashMap<>();
-	    response.put("success", true);
-	    response.put("data", subjectDTOs);
-	    response.put("total", subjectDTOs.size());
-	    response.put("stats", stats);
+		Map<String, Object> response = new HashMap<>();
+		response.put("success", true);
+		response.put("data", subjectDTOs);
+		response.put("total", subjectDTOs.size());
+		response.put("stats", stats);
 
-	    return response;
+		return response;
 	}
-
 
 	// ------------------- GET ALL SUBJECTS -------------------
 	public Map<String, Object> getAllSubjects(int page, int limit, String status) {
@@ -186,119 +184,110 @@ public class SubjectService {
 	@Transactional
 	public void deleteSubject(Long id) {
 
-	    Subject subject = subjectRepository.findById(id)
-	            .orElseThrow(() -> new RuntimeException("Không tìm thấy môn học"));
+		Subject subject = subjectRepository.findById(id)
+				.orElseThrow(() -> new RuntimeException("Không tìm thấy môn học"));
 
-	    // 1Kiểm tra nợ lương giáo viên
-	    long unpaidTeacherSalary =
-	            teacherPaymentDetailRepository.countUnpaidBySubject(id);
+		// 1Kiểm tra nợ lương giáo viên
+		long unpaidTeacherSalary = teacherPaymentDetailRepository.countUnpaidBySubject(id);
 
-	    if (unpaidTeacherSalary > 0) {
-	        throw new IllegalStateException("TEACHER_UNPAID");
-	    }
+		if (unpaidTeacherSalary > 0) {
+			throw new IllegalStateException("TEACHER_UNPAID");
+		}
 
-	    // 2Kiểm tra học phí học sinh
-	    long unpaidStudentTuition =
-	            studentTuitionDetailRepository.countUnpaidBySubject(id);
+		// 2Kiểm tra học phí học sinh
+		long unpaidStudentTuition = studentTuitionDetailRepository.countUnpaidBySubject(id);
 
-	    if (unpaidStudentTuition > 0) {
-	        throw new IllegalStateException("STUDENT_UNPAID");
-	    }
+		if (unpaidStudentTuition > 0) {
+			throw new IllegalStateException("STUDENT_UNPAID");
+		}
 
-	    // 3Xóa các quan hệ trung gian
-	    teacherSubjectRepository.deleteBySubjectId(id);
-	    studentSubjectRepository.deleteBySubjectId(id);
+		// 3Xóa các quan hệ trung gian
+		teacherSubjectRepository.deleteBySubjectId(id);
+		studentSubjectRepository.deleteBySubjectId(id);
 
-	    // Xóa môn học
-	    subjectRepository.delete(subject);
+		// Xóa môn học
+		subjectRepository.delete(subject);
 	}
-
-
 
 	// ------------------- UPDATE SUBJECT -------------------
 	@Transactional
 	public void updateSubject(Long id, UpdateSubjectRequest updatedData) {
 
-	    // 1. Lấy môn học
-	    Subject subject = subjectRepository.findById(id)
-	            .orElseThrow(() -> new RuntimeException("Không tìm thấy môn học"));
+		// 1. Lấy môn học
+		Subject subject = subjectRepository.findById(id)
+				.orElseThrow(() -> new RuntimeException("Không tìm thấy môn học"));
 
-	    // ====== CHECK ĐỔI GIÁO VIÊN KHI CÒN NỢ LƯƠNG ======
-	    Long newTeacherId = updatedData.getTeacherId();
+		// ====== CHECK ĐỔI GIÁO VIÊN KHI CÒN NỢ LƯƠNG ======
+		Long newTeacherId = updatedData.getTeacherId();
 
-	    TeacherSubject existingTS =
-	            teacherSubjectRepository.findBySubjectId(id).orElse(null);
+		TeacherSubject existingTS = teacherSubjectRepository.findBySubjectId(id).orElse(null);
 
-	    Long currentTeacherId =
-	            existingTS != null ? existingTS.getTeacher().getId() : null;
+		Long currentTeacherId = existingTS != null ? existingTS.getTeacher().getId() : null;
 
-	    boolean isChangingTeacher =
-	            !Objects.equals(currentTeacherId, newTeacherId);
+		boolean isChangingTeacher = !Objects.equals(currentTeacherId, newTeacherId);
 
-	    if (isChangingTeacher && existingTS != null) {
-	        long unpaidSalary =
-	                teacherPaymentDetailRepository.countUnpaidBySubject(id);
+		if (isChangingTeacher && existingTS != null) {
+			long unpaidSalary = teacherPaymentDetailRepository.countUnpaidBySubject(id);
 
-	        if (unpaidSalary > 0) {
-	            throw new IllegalStateException("TEACHER_UNPAID_CHANGE");
-	        }
-	    }
-	    // ====== END CHECK ======
+			if (unpaidSalary > 0) {
+				throw new IllegalStateException("TEACHER_UNPAID_CHANGE");
+			}
+		}
+		// ====== END CHECK ======
 
-	    // 2. Cập nhật thông tin môn học
-	    subject.setName(updatedData.getName());
-	    subject.setGrade(updatedData.getGrade());
+		// 2. Cập nhật thông tin môn học
+		subject.setName(updatedData.getName());
+		subject.setGrade(updatedData.getGrade());
 
-	    if (updatedData.getPrice() != null) {
-	        subject.setPrice(BigDecimal.valueOf(updatedData.getPrice()));
-	    }
+		if (updatedData.getPrice() != null) {
+			subject.setPrice(BigDecimal.valueOf(updatedData.getPrice()));
+		}
 
-	    subject.setStatus(updatedData.getStatus());
-	    subject.setMaxStudents(updatedData.getMaxStudents());
-	    subject.setSessionsPerWeek(updatedData.getSessionsPerWeek());
-	    subject.setNote(updatedData.getNote());
+		subject.setStatus(updatedData.getStatus());
+		subject.setMaxStudents(updatedData.getMaxStudents());
+		subject.setSessionsPerWeek(updatedData.getSessionsPerWeek());
+		subject.setNote(updatedData.getNote());
 
-	    subjectRepository.save(subject);
+		subjectRepository.save(subject);
 
-	    // 3. Chuẩn hóa teacherId
-	    Long teacherIdNorm = updatedData.getTeacherId();
+		// 3. Chuẩn hóa teacherId
+		Long teacherIdNorm = updatedData.getTeacherId();
 
-	    if (existingTS != null) {
-	        if (teacherIdNorm == null) {
-	            // Nếu bỏ giáo viên
-	            teacherSubjectRepository.delete(existingTS);
-	        } else {
-	            // Cập nhật giáo viên
-	            Teacher teacher = teacherRepository.findById(teacherIdNorm)
-	                    .orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên"));
-	            existingTS.setTeacher(teacher);
+		if (existingTS != null) {
+			if (teacherIdNorm == null) {
+				// Nếu bỏ giáo viên
+				teacherSubjectRepository.delete(existingTS);
+			} else {
+				// Cập nhật giáo viên
+				Teacher teacher = teacherRepository.findById(teacherIdNorm)
+						.orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên"));
+				existingTS.setTeacher(teacher);
 
-	            BigDecimal newSalary = updatedData.getSalaryRate() != null
-	                    ? BigDecimal.valueOf(updatedData.getSalaryRate())
-	                    : existingTS.getSalaryRate();
-	            existingTS.setSalaryRate(newSalary);
+				BigDecimal newSalary = updatedData.getSalaryRate() != null
+						? BigDecimal.valueOf(updatedData.getSalaryRate())
+						: existingTS.getSalaryRate();
+				existingTS.setSalaryRate(newSalary);
 
-	            teacherSubjectRepository.save(existingTS);
-	        }
-	    } else {
-	        // Chưa có TeacherSubject nhưng có teacherId → tạo mới
-	        if (teacherIdNorm != null) {
-	            Teacher teacher = teacherRepository.findById(teacherIdNorm)
-	                    .orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên"));
-	            TeacherSubject ts = new TeacherSubject();
-	            ts.setSubject(subject);
-	            ts.setTeacher(teacher);
+				teacherSubjectRepository.save(existingTS);
+			}
+		} else {
+			// Chưa có TeacherSubject nhưng có teacherId → tạo mới
+			if (teacherIdNorm != null) {
+				Teacher teacher = teacherRepository.findById(teacherIdNorm)
+						.orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên"));
+				TeacherSubject ts = new TeacherSubject();
+				ts.setSubject(subject);
+				ts.setTeacher(teacher);
 
-	            BigDecimal newSalary = updatedData.getSalaryRate() != null
-	                    ? BigDecimal.valueOf(updatedData.getSalaryRate())
-	                    : BigDecimal.ZERO;
-	            ts.setSalaryRate(newSalary);
+				BigDecimal newSalary = updatedData.getSalaryRate() != null
+						? BigDecimal.valueOf(updatedData.getSalaryRate())
+						: BigDecimal.ZERO;
+				ts.setSalaryRate(newSalary);
 
-	            teacherSubjectRepository.save(ts);
-	        }
-	    }
+				teacherSubjectRepository.save(ts);
+			}
+		}
 	}
-
 
 	@Transactional
 	public Subject createSubject(CreateSubjectRequest request) throws Exception {
@@ -381,22 +370,38 @@ public class SubjectService {
 
 		return subject;
 	}
-	
-	public SubjectStatisticsDTO getSubjectStatistics () {
-		
+
+	public SubjectStatisticsDTO getSubjectStatistics() {
+
 		long totalSubjects = subjectRepository.count();
 		YearMonth currentMonth = YearMonth.now();
-    	LocalDateTime startOfMonth = currentMonth.atDay(1).atStartOfDay();
-    	LocalDateTime endOfMonth = currentMonth.atEndOfMonth().atTime(23, 59, 59);
-    	
-    	long newSubjectThisMonth = subjectRepository.countByCreatedAtBetween(startOfMonth, endOfMonth);
-    	
-    	double percentageIncreaseSubject = 0;
-    	if ( totalSubjects > 0) {
-    		percentageIncreaseSubject = ((double) newSubjectThisMonth / totalSubjects) * 100;	
-    	}
-    	percentageIncreaseSubject = Math.round(percentageIncreaseSubject * 100.0) / 100.0;
+		LocalDateTime startOfMonth = currentMonth.atDay(1).atStartOfDay();
+		LocalDateTime endOfMonth = currentMonth.atEndOfMonth().atTime(23, 59, 59);
+
+		long newSubjectThisMonth = subjectRepository.countByCreatedAtBetween(startOfMonth, endOfMonth);
+
+		double percentageIncreaseSubject = 0;
+		if (totalSubjects > 0) {
+			percentageIncreaseSubject = ((double) newSubjectThisMonth / totalSubjects) * 100;
+		}
+		percentageIncreaseSubject = Math.round(percentageIncreaseSubject * 100.0) / 100.0;
 		return new SubjectStatisticsDTO(totalSubjects, newSubjectThisMonth, percentageIncreaseSubject);
+	}
+
+	public List<Map<String, Object>> getSubjectsByLevel() {
+		List<Object[]> result = subjectRepository.countSubjectsByLevel();
+
+		List<Map<String, Object>> data = new ArrayList<>();
+
+		for (Object[] row : result) {
+			Map<String, Object> item = new HashMap<>();
+			item.put("level", row[0]); // tên cấp học
+			item.put("total", row[1]); // số lớp
+
+			data.add(item);
+		}
+
+		return data;
 	}
 
 	// ------------------- MAPPING HELPER -------------------
