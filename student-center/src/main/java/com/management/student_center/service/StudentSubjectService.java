@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -39,7 +40,7 @@ public class StudentSubjectService {
 
     @Transactional(readOnly = true)
     public List<StudentDTO> getStudentsBySubjectId(Long subjectId) {
-        List<StudentSubject> ssList = studentSubjectRepository.findBySubjectId(subjectId);
+        List<StudentSubject> ssList = studentSubjectRepository.findActiveBySubjectId(subjectId);
 
         return ssList.stream().map(ss -> {
             Student s = ss.getStudent();
@@ -54,7 +55,7 @@ public class StudentSubjectService {
         }).collect(Collectors.toList());
     }
 
-    @Transactional
+    /*@Transactional
     public StudentSubject addStudentToSubject(Long studentId, Long subjectId) {
         Student student = studentRepository.findById(studentId)
                 .orElseThrow(() -> new NoSuchElementException("Không tìm thấy học sinh"));
@@ -71,9 +72,48 @@ public class StudentSubjectService {
         ss.setEnrollmentDate(java.time.LocalDate.now());
 
         return studentSubjectRepository.save(ss);
+    }*/
+    
+    @Transactional
+    public StudentSubject addStudentToSubject(Long studentId, Long subjectId) {
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() -> new NoSuchElementException("Không tìm thấy học sinh"));
+        Subject subject = subjectRepository.findById(subjectId)
+                .orElseThrow(() -> new NoSuchElementException("Không tìm thấy môn học"));
+
+        // Kiểm tra xem đã có bản ghi nào chưa
+        Optional<StudentSubject> existingRecord = studentSubjectRepository
+                .findByStudentIdAndSubjectId(studentId, subjectId);
+
+        if (existingRecord.isPresent()) {
+            StudentSubject ssExisting = existingRecord.get();
+            
+            // Nếu bản ghi đã bị xóa mềm (deletedAt != null)
+            if (ssExisting.getDeletedAt() != null) {
+                // Tạo bản ghi mới thay vì tái sử dụng bản ghi cũ
+                StudentSubject ss = new StudentSubject();
+                ss.setStudent(student);
+                ss.setSubject(subject);
+                ss.setEnrollmentDate(java.time.LocalDate.now());
+                ss.setDeletedAt(null); // Đảm bảo bản ghi mới chưa bị xóa
+                return studentSubjectRepository.save(ss);
+            } else {
+                // Bản ghi đang active (chưa xóa)
+                throw new IllegalArgumentException("Học sinh đã được thêm vào môn học này");
+            }
+        }
+
+        // Chưa có bản ghi nào, tạo mới
+        StudentSubject ss = new StudentSubject();
+        ss.setStudent(student);
+        ss.setSubject(subject);
+        ss.setEnrollmentDate(java.time.LocalDate.now());
+        ss.setDeletedAt(null);
+
+        return studentSubjectRepository.save(ss);
     }
 
-    @Transactional
+    /*@Transactional
     public void removeStudentFromSubject(Long studentId, Long subjectId) {
 
         // 1. Kiểm tra học sinh có còn nợ học phí môn này không
@@ -95,6 +135,22 @@ public class StudentSubjectService {
 
         // 3. Xóa quan hệ
         studentSubjectRepository.delete(ss);
+    }*/
+    
+    @Transactional
+    public void removeStudentFromSubject(Long studentId, Long subjectId) {
+
+        // Kiểm tra tồn tại quan hệ Student - Subject (chỉ lấy bản ghi chưa xóa)
+        StudentSubject ss = studentSubjectRepository
+                .findByStudentIdAndSubjectId(studentId, subjectId)
+                .filter(record -> record.getDeletedAt() == null)
+                .orElseThrow(() ->
+                        new NoSuchElementException("Không tìm thấy học sinh trong môn học này hoặc học sinh đã bị xóa trước đó")
+                );
+
+        // Xóa mềm - chỉ cập nhật deletedAt
+        ss.setDeletedAt(java.time.LocalDate.now());
+        studentSubjectRepository.save(ss);
     }
 
     @Transactional(readOnly = true)

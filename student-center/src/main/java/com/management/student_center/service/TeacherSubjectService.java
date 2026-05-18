@@ -24,10 +24,8 @@ public class TeacherSubjectService {
 
     private final TeacherSubjectRepository teacherSubjectRepository;
     private final TeacherRepository teacherRepository;
-    private final SubjectRepository subjectRepository; // Bạn cần đảm bảo đã có Repo này
+    private final SubjectRepository subjectRepository; 
 
-    // Lấy baseUrl từ application.properties (ví dụ: http://localhost:8088)
-    // Bạn có thể set mặc định nếu không có trong file config
     @Value("${app.base-url:http://localhost:8088}") 
     private String baseUrl;
 
@@ -174,7 +172,6 @@ public class TeacherSubjectService {
                 dto.setTeacherName(ts.getTeacher().getUserInfo().getFullName());
                 dto.setEmail(ts.getTeacher().getUserInfo().getEmail());
                 
-                // Logic xử lý ảnh avatar
                 String imagePath = ts.getTeacher().getUserInfo().getImage();
                 if (imagePath != null && !imagePath.isEmpty()) {
                     String fullUrl = baseUrl + (imagePath.startsWith("/") ? "" : "/") + imagePath;
@@ -192,14 +189,12 @@ public class TeacherSubjectService {
             dto.setGrade(ts.getSubject().getGrade());
         }
 
-        // Format tiền tệ Việt Nam
         if (ts.getSalaryRate() != null) {
             NumberFormat vnFormat = NumberFormat.getInstance(new Locale("vi", "VN"));
             dto.setSalaryRate(vnFormat.format(ts.getSalaryRate()) + " VNĐ/giờ");
         }
         
         if (ts.getCreatedAt() != null) {
-            // Format thành: 05/12/2025 14:30
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
             dto.setCreatedAt(ts.getCreatedAt().format(formatter));
         } else {

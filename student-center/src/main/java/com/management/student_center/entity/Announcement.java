@@ -29,10 +29,32 @@ public class Announcement {
 
 	@Column(nullable = false)
 	private String status = "active";
+	
+	@Column(nullable = false)
+	private Boolean pinned = false;
 
 	private LocalDateTime createdAt;
 
 	private LocalDateTime updatedAt;
+	
+	 @Transient // Không lưu xuống DB, tính toán dynamic
+	    private Long likeCount;
+	    
+	    @Transient
+	    private Long viewCount;
+	    
+	    @Transient
+	    private Boolean likedByCurrentUser;
+	    
+	    // Getters and Setters
+	    public Long getLikeCount() { return likeCount; }
+	    public void setLikeCount(Long likeCount) { this.likeCount = likeCount; }
+	    
+	    public Long getViewCount() { return viewCount; }
+	    public void setViewCount(Long viewCount) { this.viewCount = viewCount; }
+	    
+	    public Boolean getLikedByCurrentUser() { return likedByCurrentUser; }
+	    public void setLikedByCurrentUser(Boolean likedByCurrentUser) { this.likedByCurrentUser = likedByCurrentUser; }
 
 	@JdbcTypeCode(SqlTypes.JSON)
 	@Column(columnDefinition = "JSON")
@@ -99,6 +121,14 @@ public class Announcement {
 
 	public void setStatus(String status) {
 		this.status = status;
+	}
+	
+	public Boolean getPinned() {
+	    return pinned;
+	}
+
+	public void setPinned(Boolean pinned) {
+	    this.pinned = pinned;
 	}
 
 	public LocalDateTime getCreatedAt() {

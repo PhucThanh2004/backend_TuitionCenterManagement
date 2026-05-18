@@ -151,9 +151,6 @@ public class SubjectController {
     public Map<String, Object> createSubject(
             @ModelAttribute CreateSubjectRequest request
     ) {
-    	System.out.println("maxStudents = " + request.getMaxStudents());
-        System.out.println("sessionsPerWeek = " + request.getSessionsPerWeek());
-        System.out.println("price = " + request.getPrice());
         Map<String, Object> response = new HashMap<>();
         try {
             Subject subject = subjectService.createSubject(request);

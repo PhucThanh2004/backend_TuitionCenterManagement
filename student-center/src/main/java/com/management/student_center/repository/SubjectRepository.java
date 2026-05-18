@@ -19,8 +19,8 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
 
 	long countByStatus(String status);
 
-	@Query("SELECT COUNT(ss) FROM StudentSubject ss WHERE ss.subject.id = :subjectId")
-	long countCurrentStudents(Long subjectId);
+	@Query("SELECT COUNT(ss) FROM StudentSubject ss WHERE ss.subject.id = :subjectId AND ss.deletedAt IS NULL")
+	long countCurrentStudents(@Param("subjectId") Long subjectId);
 
 	// Lấy môn học theo teacher
 	@Query("SELECT s FROM Subject s JOIN s.teacherSubjects ts WHERE ts.teacher.userInfo.id = :userId")

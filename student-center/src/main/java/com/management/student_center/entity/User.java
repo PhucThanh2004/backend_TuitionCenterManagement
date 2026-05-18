@@ -12,107 +12,179 @@ import jakarta.persistence.*;
 @Table(name = "users")
 public class User {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    private String email;
+	private String email;
 
-    @JsonIgnore
-    private String password;
+	@JsonIgnore
+	private String password;
 
-    @Column(name = "fullName")
-    private String fullName;
+	@Column(name = "fullName")
+	private String fullName;
 
-    @Column(name = "phoneNumber")
-    private String phoneNumber;
+	@Column(name = "phoneNumber")
+	private String phoneNumber;
 
-    private Boolean gender;
+	private Boolean gender;
 
-    private String image;
+	private String image;
 
-    @Column(name = "roleId")
-    private String roleId;
-    
-    @CreationTimestamp
-    @Column(updatable = false)
-    private LocalDateTime createdAt;
+	@Column(name = "roleId")
+	private String roleId;
 
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
-    
-    @Column(name = "password_updated_at")
-    private LocalDateTime passwordUpdatedAt;
+	@Column(name = "status", nullable = false)
+	private Boolean status = true;
 
-    @JsonIgnore
-    @OneToOne(mappedBy = "userInfo", cascade = CascadeType.ALL)
-    private Teacher teacherInfo;
+	@CreationTimestamp
+	@Column(updatable = false)
+	private LocalDateTime createdAt;
 
-    @JsonIgnore
-    @OneToOne(mappedBy = "userInfo", cascade = CascadeType.ALL)
-    private Student studentInfo;
+	@UpdateTimestamp
+	private LocalDateTime updatedAt;
 
-    // Constructor mặc định
-    public User() {}
+	@Column(name = "password_updated_at")
+	private LocalDateTime passwordUpdatedAt;
 
-    // Constructor đầy đủ
-    public User(Long id, String email, String password, String fullName, String phoneNumber,
-                Boolean gender, String image, String roleId, Teacher teacherInfo, Student studentInfo) {
-        this.id = id;
-        this.email = email;
-        this.password = password;
-        this.fullName = fullName;
-        this.phoneNumber = phoneNumber;
-        this.gender = gender;
-        this.image = image;
-        this.roleId = roleId;
-        this.teacherInfo = teacherInfo;
-        this.studentInfo = studentInfo;
-    }
+	@JsonIgnore
+	@OneToOne(mappedBy = "userInfo", cascade = CascadeType.ALL)
+	private Teacher teacherInfo;
 
-    // Getter và Setter
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+	@JsonIgnore
+	@OneToOne(mappedBy = "userInfo", cascade = CascadeType.ALL)
+	private Student studentInfo;
 
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
+	// Constructor mặc định
+	public User() {
+	}
 
-    public String getPassword() { return password; }
-    public void setPassword(String password) { this.password = password; }
+	// Constructor đầy đủ
+	public User(Long id, String email, String password, String fullName, String phoneNumber, Boolean gender,
+			String image, String roleId, Teacher teacherInfo, Student studentInfo) {
+		this.id = id;
+		this.email = email;
+		this.password = password;
+		this.fullName = fullName;
+		this.phoneNumber = phoneNumber;
+		this.gender = gender;
+		this.image = image;
+		this.roleId = roleId;
+		this.teacherInfo = teacherInfo;
+		this.studentInfo = studentInfo;
+	}
 
-    public String getFullName() { return fullName; }
-    public void setFullName(String fullName) { this.fullName = fullName; }
+	// Getter và Setter
+	public Long getId() {
+		return id;
+	}
 
-    public String getPhoneNumber() { return phoneNumber; }
-    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+	public void setId(Long id) {
+		this.id = id;
+	}
 
-    public Boolean getGender() { return gender; }
-    public void setGender(Boolean gender) { this.gender = gender; }
+	public String getEmail() {
+		return email;
+	}
 
-    public String getImage() { return image; }
-    public void setImage(String image) { this.image = image; }
+	public void setEmail(String email) {
+		this.email = email;
+	}
 
-    public String getRoleId() { return roleId; }
-    public void setRoleId(String roleId) { this.roleId = roleId; }
+	public String getPassword() {
+		return password;
+	}
 
-    public Teacher getTeacherInfo() { return teacherInfo; }
-    public void setTeacherInfo(Teacher teacherInfo) { this.teacherInfo = teacherInfo; }
+	public void setPassword(String password) {
+		this.password = password;
+	}
 
-    public Student getStudentInfo() { return studentInfo; }
-    public void setStudentInfo(Student studentInfo) { this.studentInfo = studentInfo; }
-    
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+	public String getFullName() {
+		return fullName;
+	}
 
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
-    
-    public LocalDateTime getPasswordUpdatedAt() {
-        return passwordUpdatedAt;
-    }
+	public void setFullName(String fullName) {
+		this.fullName = fullName;
+	}
 
-    public void setPasswordUpdatedAt(LocalDateTime passwordUpdatedAt) {
-        this.passwordUpdatedAt = passwordUpdatedAt;
-    }
+	public String getPhoneNumber() {
+		return phoneNumber;
+	}
+
+	public void setPhoneNumber(String phoneNumber) {
+		this.phoneNumber = phoneNumber;
+	}
+
+	public Boolean getGender() {
+		return gender;
+	}
+
+	public void setGender(Boolean gender) {
+		this.gender = gender;
+	}
+
+	public String getImage() {
+		return image;
+	}
+
+	public void setImage(String image) {
+		this.image = image;
+	}
+
+	public String getRoleId() {
+		return roleId;
+	}
+
+	public void setRoleId(String roleId) {
+		this.roleId = roleId;
+	}
+
+	public Boolean getStatus() {
+		return status;
+	}
+
+	public void setStatus(Boolean status) {
+		this.status = status;
+	}
+
+	public Teacher getTeacherInfo() {
+		return teacherInfo;
+	}
+
+	public void setTeacherInfo(Teacher teacherInfo) {
+		this.teacherInfo = teacherInfo;
+	}
+
+	public Student getStudentInfo() {
+		return studentInfo;
+	}
+
+	public void setStudentInfo(Student studentInfo) {
+		this.studentInfo = studentInfo;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+	public LocalDateTime getPasswordUpdatedAt() {
+		return passwordUpdatedAt;
+	}
+
+	public void setPasswordUpdatedAt(LocalDateTime passwordUpdatedAt) {
+		this.passwordUpdatedAt = passwordUpdatedAt;
+	}
 
 }

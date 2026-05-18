@@ -13,6 +13,7 @@ public class TeacherDTO {
 	private String image;
 	private String roleId;
 	private String roleName;
+	private Boolean status;
 
 	private LocalDate dateOfBirth;
 	private String specialty;
@@ -105,5 +106,13 @@ public class TeacherDTO {
 
 	public void setAddress(AddressDTO address) {
 		this.address = address;
+	}
+
+	public Boolean getStatus() {
+		return status;
+	}
+
+	public void setStatus(Boolean status) {
+		this.status = status;
 	}
 }

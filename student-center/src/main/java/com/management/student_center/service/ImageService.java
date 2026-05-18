@@ -1,4 +1,3 @@
-// service/ImageService.java
 package com.management.student_center.service;
 
 import jakarta.annotation.PostConstruct;
@@ -12,81 +11,107 @@ import java.nio.file.*;
 @Service
 public class ImageService {
 
-    // Giống "public" trong code JS
-    private final String PUBLIC_DIR = "public";
-    
-    // Giống "subDir" (mặc định là "uploads")
-    private final String UPLOAD_SUB_DIR = "uploads";
+    // uploads/avatar
+    private static final String UPLOAD_DIR = "uploads/avatars";
 
-    // Đường dẫn gốc đầy đủ (public/uploads)
+    // root path
     private final Path rootLocation;
 
     public ImageService() {
-        // Path.of() tự động dùng / hoặc \ tùy HĐH
-        this.rootLocation = Paths.get(PUBLIC_DIR, UPLOAD_SUB_DIR);
+
+        // uploads/avatar
+        this.rootLocation = Paths.get(UPLOAD_DIR);
     }
 
-    // Hàm này chạy khi Service khởi động, giống "fs.mkdirSync(recursive: true)"
     @PostConstruct
     public void init() {
+
         try {
+
             Files.createDirectories(rootLocation);
-            System.out.println("Đã tạo thư mục (nếu chưa có): " + rootLocation.toString());
+
+            System.out.println(
+                    "Upload folder: "
+                    + rootLocation.toAbsolutePath()
+            );
+
         } catch (IOException e) {
-            throw new RuntimeException("Không thể khởi tạo thư mục lưu trữ!", e);
+
+            throw new RuntimeException(
+                    "Không thể tạo thư mục upload!",
+                    e
+            );
         }
     }
 
     /**
-     * Tương đương saveImage
-     * @param file Đối tượng MultipartFile từ controller
-     * @return Đường dẫn tương đối (ví dụ: "uploads/12345_image.png")
+     * Save avatar
      */
     public String saveImage(MultipartFile file) {
+
         if (file == null || file.isEmpty()) {
             return null;
         }
 
         try {
-            // 1. Tạo tên file duy nhất (giống Date.now()_...)
+
             String originalFileName = file.getOriginalFilename();
-            String fileName = System.currentTimeMillis() + "_" + (originalFileName != null ? originalFileName : "file");
-            
-            // 2. Resolve đường dẫn (giống path.join)
-            Path destinationFile = this.rootLocation.resolve(fileName);
-            
-            // 3. Ghi file (giống fs.writeFileSync / fs.renameSync)
+
+            String fileName =
+                    System.currentTimeMillis()
+                    + "_"
+                    + (originalFileName != null
+                    ? originalFileName.replaceAll("\\s+", "_")
+                    : "avatar");
+
+            // uploads/avatar/xxx.png
+            Path destinationFile =
+                    rootLocation.resolve(fileName);
+
             try (InputStream inputStream = file.getInputStream()) {
-                Files.copy(inputStream, destinationFile, StandardCopyOption.REPLACE_EXISTING);
+
+                Files.copy(
+                        inputStream,
+                        destinationFile,
+                        StandardCopyOption.REPLACE_EXISTING
+                );
             }
 
-            // 4. Trả về đường dẫn tương đối (giống `${subDir}/${fileName}`)
-            // Chúng ta trả về cả subDir để WebConfig có thể map
-            return UPLOAD_SUB_DIR + "/" + fileName;
+            // return uploads/avatar/xxx.png
+            return UPLOAD_DIR + "/" + fileName;
 
         } catch (IOException e) {
-            throw new RuntimeException("Lưu file thất bại!", e);
+
+            throw new RuntimeException(
+                    "Lưu avatar thất bại!",
+                    e
+            );
         }
     }
 
     /**
-     * Tương đương deleteImage
-     * @param relativePath Đường dẫn tương đối (ví dụ: "uploads/12345_image.png")
+     * Delete avatar
      */
     public void deleteImage(String relativePath) {
+
         if (relativePath == null || relativePath.isEmpty()) {
             return;
         }
 
         try {
-            // 1. Resolve đường dẫn (giống path.join(process.cwd(), "public", relativePath))
-            Path filePath = Paths.get(PUBLIC_DIR).resolve(relativePath);
 
-            // 2. Xóa file (giống fs.unlinkSync)
+            Path filePath = Paths.get(relativePath);
+
             Files.deleteIfExists(filePath);
 
         } catch (IOException e) {
-            System.err.println("Xóa file thất bại: " + relativePath + ". Lỗi: " + e.getMessage());
+
+            System.err.println(
+                    "Xóa file thất bại: "
+                    + relativePath
+                    + " | "
+                    + e.getMessage()
+            );
         }
     }
 }

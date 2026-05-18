@@ -66,9 +66,12 @@ public class StudentSubjectController {
 
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Thêm học sinh vào môn học thành công");
-            response.put("data", ss);
+
+            // ❗ KHÔNG trả entity nữa
+            response.put("data", ss.getId()); 
 
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
+
         } catch (Exception e) {
             Map<String, Object> error = new HashMap<>();
             error.put("message", e.getMessage());
@@ -76,7 +79,6 @@ public class StudentSubjectController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
         }
     }
-
     @DeleteMapping("/subject-students")
     public ResponseEntity<?> removeStudentFromSubject(@RequestBody StudentSubjectRequest req) {
         try {

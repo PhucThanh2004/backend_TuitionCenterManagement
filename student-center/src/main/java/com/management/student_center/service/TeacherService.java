@@ -63,14 +63,20 @@ public class TeacherService {
 		this.teacherPaymentRepository = teacherPaymentRepository;
 	}
 
+	private Boolean parseStatus(String statusStr) {
+		if (statusStr == null || statusStr.isEmpty())
+			return null;
+		return "true".equalsIgnoreCase(statusStr) || "1".equals(statusStr);
+	}
+
 	public PaginatedResponseDTO<TeacherDTO> getAllTeachers(int page, int limit, Map<String, String> filters) {
 		Pageable pageable = PageRequest.of(page - 1, limit);
 
-		// Xây dựng Specification (filter động)
 		Specification<Teacher> spec = Specification.where(TeacherSpecification.hasRole("R1"))
 				.and(TeacherSpecification.nameContains(filters.get("name")))
 				.and(TeacherSpecification.genderIs(parseGender(filters.get("gender"))))
-				.and(TeacherSpecification.specialtyContains(filters.get("specialty")));
+				.and(TeacherSpecification.specialtyContains(filters.get("specialty")))
+				.and(TeacherSpecification.hasStatus(parseStatus(filters.get("status"))));
 
 		Page<Teacher> teacherPage = teacherRepository.findAll(spec, pageable);
 
@@ -85,7 +91,8 @@ public class TeacherService {
 
 	public List<TeacherBasicDTO> getTeacherBasicList() {
 		return teacherRepository.findAll().stream()
-				.filter(t -> t.getUserInfo() != null && "R1".equals(t.getUserInfo().getRoleId()))
+				.filter(t -> t.getUserInfo() != null && "R1".equals(t.getUserInfo().getRoleId())
+						&& Boolean.TRUE.equals(t.getUserInfo().getStatus()))
 				.map(t -> new TeacherBasicDTO(t.getId(), t.getUserInfo().getId(), t.getUserInfo().getFullName(),
 						t.getUserInfo().getEmail(), t.getUserInfo().getPhoneNumber(), t.getUserInfo().getGender(),
 						t.getSpecialty(), t.getUserInfo().getImage()))
@@ -114,6 +121,7 @@ public class TeacherService {
 		newUser.setImage(imagePath);
 		newUser.setRoleId(dto.getRoleId());
 		newUser.setPasswordUpdatedAt(LocalDateTime.now());
+		newUser.setStatus(dto.getStatus() != null ? dto.getStatus() : true);
 		User savedUser = userRepository.save(newUser);
 
 		if ("R1".equals(dto.getRoleId())) {
@@ -138,7 +146,7 @@ public class TeacherService {
 	}
 
 	/**
-	 * Tương đương: updateEmployeeData
+	 * updateEmployeeData
 	 */
 	@Transactional
 	public Teacher updateEmployeeData(Long userId, UpdateEmployeeDTO dto, MultipartFile file) {
@@ -151,7 +159,9 @@ public class TeacherService {
 		user.setFullName(dto.getFullName());
 		user.setPhoneNumber(dto.getPhoneNumber());
 		user.setGender(dto.getGender());
-
+		if (dto.getStatus() != null) {
+			user.setStatus(dto.getStatus());
+		}
 		if (file != null && !file.isEmpty()) {
 			imageService.deleteImage(user.getImage());
 			user.setImage(imageService.saveImage(file));
@@ -175,58 +185,51 @@ public class TeacherService {
 		return teacherRepository.save(teacher);
 	}
 
-	// TeacherService.java
-
 	@Transactional
 	public void deleteEmployee(Long userId) {
-	    User user = userRepository.findById(userId)
-	            .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng!"));
+		User user = userRepository.findById(userId)
+				.orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng!"));
 
-	    Optional<Teacher> teacherOpt = teacherRepository.findByUserInfoId(userId);
-	    if (teacherOpt.isPresent()) {
-	        Teacher teacher = teacherOpt.get();
+		Optional<Teacher> teacherOpt = teacherRepository.findByUserInfoId(userId);
+		if (teacherOpt.isPresent()) {
+			Teacher teacher = teacherOpt.get();
 
-	        // Kiểm tra lương chưa thanh toán bằng repository
-	        long unpaidCount = teacherPaymentRepository.countUnpaidByTeacher(teacher.getId());
-	        if (unpaidCount > 0) {
-	            throw new RuntimeException(
-	                "Không thể xóa giáo viên này vì vẫn còn lương chưa thanh toán.");
-	        }
+			long unpaidCount = teacherPaymentRepository.countUnpaidByTeacher(teacher.getId());
+			if (unpaidCount > 0) {
+				throw new RuntimeException("Không thể xóa giáo viên này vì vẫn còn lương chưa thanh toán.");
+			}
 
-	        if (teacher.getAddressInfo() != null) {
-	            addressRepository.delete(teacher.getAddressInfo());
-	        }
-	        teacherRepository.delete(teacher);
-	    }
+			if (teacher.getAddressInfo() != null) {
+				addressRepository.delete(teacher.getAddressInfo());
+			}
+			teacherRepository.delete(teacher);
+		}
 
-	    if (user.getImage() != null) {
-	        imageService.deleteImage(user.getImage());
-	    }
-	    userRepository.delete(user);
+		if (user.getImage() != null) {
+			imageService.deleteImage(user.getImage());
+		}
+		userRepository.delete(user);
 	}
 
-
-	/**
-	 * Tương đương: deleteMultipleTeachers
-	 */
 	@Transactional
 	public void deleteMultipleTeachers(List<Long> userIds) {
 		if (userIds == null || userIds.isEmpty()) {
 			throw new RuntimeException("Danh sách ID không hợp lệ!");
 		}
 		for (Long id : userIds) {
-			this.deleteEmployee(id); // Gọi lại hàm xóa 1
+			this.deleteEmployee(id);
 		}
 	}
 
 	/**
-	 * Tương đương: exportTeachersToExcel
+	 * exportTeachersToExcel
 	 */
 	public byte[] exportTeachersToExcel(Map<String, String> filters) throws IOException {
 		Specification<Teacher> spec = Specification.where(TeacherSpecification.hasRole("R1"))
 				.and(TeacherSpecification.nameContains(filters.get("name")))
 				.and(TeacherSpecification.genderIs(parseGender(filters.get("gender"))))
-				.and(TeacherSpecification.specialtyContains(filters.get("specialty")));
+				.and(TeacherSpecification.specialtyContains(filters.get("specialty")))
+				.and(TeacherSpecification.hasStatus(parseStatus(filters.get("status"))));
 
 		List<Teacher> teachers = teacherRepository.findAll(spec);
 
@@ -274,8 +277,6 @@ public class TeacherService {
 		return out.toByteArray();
 	}
 
-	// ----- CÁC HÀM TIỆN ÍCH (HELPER) -----
-
 	private TeacherDTO mapToTeacherDTO(Teacher teacher) {
 		User user = teacher.getUserInfo();
 		Address address = teacher.getAddressInfo();
@@ -300,6 +301,7 @@ public class TeacherService {
 		dto.setDateOfBirth(teacher.getDateOfBirth());
 		dto.setSpecialty(teacher.getSpecialty());
 		dto.setAddress(addressDTO);
+		dto.setStatus(user.getStatus());
 
 		return dto;
 	}
@@ -310,21 +312,27 @@ public class TeacherService {
 		}
 		return "true".equalsIgnoreCase(genderStr) || "1".equals(genderStr);
 	}
-	
-	 public TeacherStatisticsDTO getTeacherStatistics() {
-	        long totalTeachers = teacherRepository.count();
 
-	        YearMonth currentMonth = YearMonth.now();
-	        LocalDateTime startOfMonth = currentMonth.atDay(1).atStartOfDay();
-	        LocalDateTime endOfMonth = currentMonth.atEndOfMonth().atTime(23, 59, 59);
+	public TeacherStatisticsDTO getTeacherStatistics() {
+		long totalTeachers = teacherRepository.count();
 
-	        long newTeachersThisMonth = teacherRepository.countByCreatedAtBetween(startOfMonth, endOfMonth);
+		YearMonth currentMonth = YearMonth.now();
+		LocalDateTime startOfMonth = currentMonth.atDay(1).atStartOfDay();
+		LocalDateTime endOfMonth = currentMonth.atEndOfMonth().atTime(23, 59, 59);
 
-	        double percentageIncreaseTeacher = 0;
-	        if (totalTeachers > 0) {
-	            percentageIncreaseTeacher = ((double) newTeachersThisMonth / totalTeachers) * 100;
-	        }
-	        percentageIncreaseTeacher = Math.round(percentageIncreaseTeacher * 100.0) / 100.0;
-	        return new TeacherStatisticsDTO(totalTeachers, newTeachersThisMonth, percentageIncreaseTeacher);
-	    }
+		long newTeachersThisMonth = teacherRepository.countByCreatedAtBetween(startOfMonth, endOfMonth);
+
+		double percentageIncreaseTeacher = 0;
+		if (totalTeachers > 0) {
+			percentageIncreaseTeacher = ((double) newTeachersThisMonth / totalTeachers) * 100;
+		}
+		percentageIncreaseTeacher = Math.round(percentageIncreaseTeacher * 100.0) / 100.0;
+		return new TeacherStatisticsDTO(totalTeachers, newTeachersThisMonth, percentageIncreaseTeacher);
+	}
+
+	public Long getTeacherIdByUserId(Long userId) {
+		Teacher teacher = teacherRepository.findByUserInfoId(userId)
+				.orElseThrow(() -> new RuntimeException("Không tìm thấy teacher với userId: " + userId));
+		return teacher.getId();
+	}
 }

@@ -14,6 +14,7 @@ public class MaterialDTO {
     private String subjectName;
     private Long uploadedById;
     private String uploadedByName;
+    private String uploadedByImage;
     private String fileSize; // MB
     
     private UserDTO User;
@@ -22,6 +23,7 @@ public class MaterialDTO {
         private Long id;
         private String fullName;
         private String email;
+        private String image;
 		public Long getId() {
 			return id;
 		}
@@ -40,13 +42,18 @@ public class MaterialDTO {
 		public void setEmail(String email) {
 			this.email = email;
 		}
-       
+		public String getImage() {
+			return image;
+		}
+		public void setImage(String image) {
+			this.image = image;
+		}
     }
 
     public MaterialDTO() {}
 
     public MaterialDTO(Long id, String title, String fileURL, String type, LocalDateTime uploadedAt,
-                       Long subjectId, String subjectName, Long uploadedById, String uploadedByName, String fileSize) {
+                       Long subjectId, String subjectName, Long uploadedById, String uploadedByName, String uploadedByImage, String fileSize) {
         this.id = id;
         this.title = title;
         this.fileURL = fileURL;
@@ -56,6 +63,7 @@ public class MaterialDTO {
         this.subjectName = subjectName;
         this.uploadedById = uploadedById;
         this.uploadedByName = uploadedByName;
+        this.setUploadedByImage(uploadedByImage);
         this.fileSize = fileSize;
     }
 
@@ -147,6 +155,14 @@ public class MaterialDTO {
 
 	public void setFileSize(String fileSize) {
 		this.fileSize = fileSize;
+	}
+
+	public String getUploadedByImage() {
+		return uploadedByImage;
+	}
+
+	public void setUploadedByImage(String uploadedByImage) {
+		this.uploadedByImage = uploadedByImage;
 	}
 
     

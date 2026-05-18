@@ -2,9 +2,12 @@ package com.management.student_center.service;
 
 import com.management.student_center.dto.CreateAnnouncementRequest;
 import com.management.student_center.dto.UpdateAnnouncementRequest;
+import com.management.student_center.dto.AnnouncementResponse;
 import com.management.student_center.entity.Announcement;
 import com.management.student_center.entity.User;
 import com.management.student_center.repository.AnnouncementRepository;
+import com.management.student_center.repository.AnnouncementViewRepository;
+import com.management.student_center.repository.AnnouncementLikeRepository;
 import com.management.student_center.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -24,12 +27,17 @@ public class AnnouncementService {
 
 	private final AnnouncementRepository announcementRepo;
 	private final UserRepository userRepo;
+	private final AnnouncementLikeRepository likeRepo;
+	private final AnnouncementViewRepository viewRepo;
 
 	private final String uploadDir = System.getProperty("user.dir") + "/uploads/announcements/";
 
-	public AnnouncementService(AnnouncementRepository announcementRepo, UserRepository userRepo) {
+	public AnnouncementService(AnnouncementRepository announcementRepo, UserRepository userRepo,
+			AnnouncementLikeRepository likeRepo, AnnouncementViewRepository viewRepo) {
 		this.announcementRepo = announcementRepo;
 		this.userRepo = userRepo;
+		this.likeRepo = likeRepo;
+		this.viewRepo = viewRepo;
 
 		// Tạo thư mục nếu chưa có
 		File dir = new File(uploadDir);
@@ -69,6 +77,7 @@ public class AnnouncementService {
 		}
 
 		String status = req.getStatus() != null ? req.getStatus().trim().toLowerCase() : "active";
+		a.setPinned(req.getPinned() != null ? req.getPinned() : false);
 
 		if (!status.equals("active") && !status.equals("inactive") && !status.equals("draft")) {
 			throw new RuntimeException("Invalid status. Valid values: active, inactive, draft");
@@ -97,6 +106,10 @@ public class AnnouncementService {
 				throw new RuntimeException("Invalid status");
 			}
 			a.setStatus(newStatus);
+		}
+
+		if (req.getPinned() != null) {
+			a.setPinned(req.getPinned());
 		}
 
 		// ----- IMAGE -----
@@ -162,7 +175,8 @@ public class AnnouncementService {
 	}
 
 	public Page<Announcement> getAnnouncements(int page, int size) {
-		Pageable pageable = PageRequest.of(page, size, Sort.by("updatedAt").descending());
+		Pageable pageable = PageRequest.of(page, size,
+				Sort.by(Sort.Order.desc("pinned"), Sort.Order.desc("updatedAt")));
 		return announcementRepo.findAll(pageable);
 
 	}
@@ -188,4 +202,6 @@ public class AnnouncementService {
 	public List<Announcement> getAll() {
 		return announcementRepo.findAll();
 	}
+	
 }
+

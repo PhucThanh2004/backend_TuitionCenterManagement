@@ -11,6 +11,15 @@ public class UpdateAnnouncementRequest {
 	private List<String> attachments;
 	private Boolean clearImage;
 	private Boolean clearAttachments;
+	private Boolean pinned;
+
+	public Boolean getPinned() {
+		return pinned;
+	}
+
+	public void setPinned(Boolean pinned) {
+		this.pinned = pinned;
+	}
 
 	public Boolean getClearImage() {
 		return clearImage;

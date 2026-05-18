@@ -11,6 +11,7 @@ public class UpdateEmployeeDTO {
 	private LocalDate dateOfBirth;
 	private String specialty;
 	private AddressDTO address;
+	private Boolean status;
 
 	// Getters và Setters
 	public String getFullName() {
@@ -59,5 +60,13 @@ public class UpdateEmployeeDTO {
 
 	public void setAddress(AddressDTO address) {
 		this.address = address;
+	}
+
+	public Boolean getStatus() {
+		return status;
+	}
+
+	public void setStatus(Boolean status) {
+		this.status = status;
 	}
 }

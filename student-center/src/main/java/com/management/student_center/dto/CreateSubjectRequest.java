@@ -15,8 +15,10 @@ public class CreateSubjectRequest {
     private String sessionsPerWeek;
     private String note;
     private Long teacherId;
+    private Long subjectTypeId;
 
-    private MultipartFile image; // thêm dòng này
+    private MultipartFile image;
+    private String imageUrl;
 
 	public String getName() {
 		return name;
@@ -89,8 +91,22 @@ public class CreateSubjectRequest {
 	public void setImage(MultipartFile image) {
 		this.image = image;
 	}
-
 	
+	public String getImageUrl() {
+	    return imageUrl;
+	}
+
+	public void setImageUrl(String imageUrl) {
+	    this.imageUrl = imageUrl;
+	}
+
+	public Long getSubjectTypeId() {
+		return subjectTypeId;
+	}
+
+	public void setSubjectTypeId(Long subjectTypeId) {
+		this.subjectTypeId = subjectTypeId;
+	}
     
 }
 

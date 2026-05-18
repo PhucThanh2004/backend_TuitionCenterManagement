@@ -29,6 +29,7 @@ public class StudentDTO {
     // Thêm trường createdAt và updatedAt
     private LocalDateTime createdAt;  // Thêm createdAt
     private LocalDateTime updatedAt;  // Thêm updatedAt
+    private Boolean status;
 
     // Getters và Setters
     public Long getId() { return id; }
@@ -94,4 +95,12 @@ public class StudentDTO {
         public String getName() { return name; }
         public void setName(String name) { this.name = name; }
     }
+    
+    public Boolean getStatus() {
+		return status;
+	}
+
+	public void setStatus(Boolean status) {
+		this.status = status;
+	}
 }

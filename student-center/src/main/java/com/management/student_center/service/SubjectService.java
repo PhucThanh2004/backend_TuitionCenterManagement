@@ -2,9 +2,12 @@ package com.management.student_center.service;
 
 import com.management.student_center.dto.*;
 import com.management.student_center.dto.subject.SubjectStatisticsDTO;
+import com.management.student_center.dto.subject.SubjectTypeDTO;
 import com.management.student_center.entity.StudentTuitionDetail;
 import com.management.student_center.entity.Subject;
+import com.management.student_center.entity.SubjectType;
 import com.management.student_center.repository.SubjectRepository;
+import com.management.student_center.repository.SubjectTypeRepository;
 import com.management.student_center.repository.TeacherPaymentDetailRepository;
 import com.management.student_center.repository.TeacherPaymentRepository;
 import com.management.student_center.repository.TeacherRepository;
@@ -48,6 +51,9 @@ public class SubjectService {
 
 	@Autowired
 	private StudentTuitionDetailRepository studentTuitionDetailRepository;
+
+	@Autowired
+	private SubjectTypeRepository subjectTypeRepository;
 
 	public Map<String, Object> getSubjectsByUserId(int page, int limit, String status, Long userId) {
 
@@ -248,6 +254,13 @@ public class SubjectService {
 		subject.setSessionsPerWeek(updatedData.getSessionsPerWeek());
 		subject.setNote(updatedData.getNote());
 
+		if (updatedData.getSubjectTypeId() != null) {
+			SubjectType subjectType = subjectTypeRepository.findById(updatedData.getSubjectTypeId())
+					.orElseThrow(() -> new RuntimeException("Không tìm thấy môn học"));
+
+			subject.setSubjectType(subjectType);
+		}
+
 		subjectRepository.save(subject);
 
 		// 3. Chuẩn hóa teacherId
@@ -326,7 +339,9 @@ public class SubjectService {
 
 		// ----------- LẤY FILE TRONG DTO -----------
 		MultipartFile file = request.getImage();
+		String imageUrl = request.getImageUrl();
 
+		// Ưu tiên FILE nếu có
 		if (file != null && !file.isEmpty()) {
 
 			String originalName = file.getOriginalFilename();
@@ -351,6 +366,17 @@ public class SubjectService {
 			subject.setImage("/uploads/subjects/" + fileName);
 		}
 
+		// Nếu KHÔNG có file → dùng URL
+		else if (imageUrl != null && !imageUrl.trim().isEmpty()) {
+			subject.setImage(imageUrl.trim());
+		}
+
+		if (request.getSubjectTypeId() != null) {
+			SubjectType subjectType = subjectTypeRepository.findById(request.getSubjectTypeId())
+					.orElseThrow(() -> new RuntimeException("Không tìm thấy môn học"));
+
+			subject.setSubjectType(subjectType);
+		}
 		// --- LƯU SUBJECT ---
 		subjectRepository.save(subject);
 
@@ -367,7 +393,6 @@ public class SubjectService {
 
 			teacherSubjectRepository.save(ts);
 		}
-
 		return subject;
 	}
 
@@ -425,6 +450,22 @@ public class SubjectService {
 		// Ánh xạ trường createdAt và updatedAt sang String với định dạng
 		dto.setCreatedAt(subject.getCreatedAt() != null ? subject.getCreatedAt().format(formatter) : null);
 		dto.setUpdatedAt(subject.getUpdatedAt() != null ? subject.getUpdatedAt().format(formatter) : null);
+		
+		if (subject.getSubjectType() != null) {
+		    SubjectTypeDTO stDTO = new SubjectTypeDTO();
+		    stDTO.setId(subject.getSubjectType().getId());
+		    stDTO.setName(subject.getSubjectType().getName());
+
+		    if (subject.getSubjectType().getAcademicLevel() != null) {
+		        AcademicLevelDTO levelDTO = new AcademicLevelDTO();
+		        levelDTO.setId(subject.getSubjectType().getAcademicLevel().getId());
+		        levelDTO.setName(subject.getSubjectType().getAcademicLevel().getName());
+
+		        stDTO.setAcademicLevel(levelDTO);
+		    }
+
+		    dto.setSubjectType(stDTO);
+		}
 
 		// Ánh xạ danh sách TeacherSubjects nếu có
 		if (subject.getTeacherSubjects() != null) {
@@ -444,6 +485,7 @@ public class SubjectService {
 						uDTO.setEmail(ts.getTeacher().getUserInfo().getEmail());
 						uDTO.setGender(ts.getTeacher().getUserInfo().getGender());
 						uDTO.setPhoneNumber(ts.getTeacher().getUserInfo().getPhoneNumber());
+						uDTO.setImage(ts.getTeacher().getUserInfo().getImage());
 						tDTO.setUser(uDTO);
 					}
 

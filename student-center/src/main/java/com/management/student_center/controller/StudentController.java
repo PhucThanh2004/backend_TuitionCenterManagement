@@ -22,268 +22,285 @@ import java.util.Map;
 @RequestMapping("/v1/api")
 public class StudentController {
 
-    private final StudentService studentService;
+	private final StudentService studentService;
 
-    public StudentController(StudentService studentService) {
-        this.studentService = studentService;
-    }
+	public StudentController(StudentService studentService) {
+		this.studentService = studentService;
+	}
 
-    /**
-     * === handleGetAllStudents ===
-     * Lấy danh sách học sinh (Filter: name, grade, schoolName, gender, subject)
-     */
-    @GetMapping("/students")
-    public ResponseEntity<Map<String, Object>> getAllStudents(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int limit,
-            @RequestParam(required = false) String name,
-            @RequestParam(required = false) String grade,
-            @RequestParam(required = false) String schoolName,
-            @RequestParam(required = false) String gender,
-            @RequestParam(required = false) String subject) { // Thêm filter subject
-        try {
-            Map<String, String> filters = new HashMap<>();
-            if (name != null) filters.put("name", name);
-            if (grade != null) filters.put("grade", grade);
-            if (schoolName != null) filters.put("schoolName", schoolName);
-            if (gender != null) filters.put("gender", gender);
-            if (subject != null) filters.put("subject", subject);
+	@GetMapping("/students/group-by-school")
+	public ResponseEntity<Map<String, Object>> getStudentsGroupBySchool(@RequestParam(required = false) String name,
+			@RequestParam(required = false) String grade, @RequestParam(required = false) String schoolName,
+			@RequestParam(required = false) String gender) {
 
-            PaginatedResponseDTO<StudentDTO> serviceResponse = studentService.getAllStudents(page, limit, filters);
+		try {
+			Map<String, String> filters = new HashMap<>();
+			if (name != null)
+				filters.put("name", name);
+			if (grade != null)
+				filters.put("grade", grade);
+			if (schoolName != null)
+				filters.put("schoolName", schoolName);
+			if (gender != null)
+				filters.put("gender", gender);
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("errCode", 0);
-            response.put("message", "OK");
-            response.put("data", serviceResponse.data);
-            response.put("pagination", serviceResponse.pagination);
+			StudentGroupResponseDTO serviceResponse = studentService.getAllStudentsGroupBySchool(filters);
 
-            return ResponseEntity.ok(response);
+			Map<String, Object> response = new HashMap<>();
+			response.put("errCode", 0);
+			response.put("message", "OK");
+			response.put("totalStudents", serviceResponse.getTotalStudents());
+			response.put("data", serviceResponse.getStudentsBySchool());
+			response.put("totalStudentsBySchool", serviceResponse.getTotalStudentsBySchool());
 
-        } catch (Exception e) {
-            return createErrorResponse(e);
-        }
-    }
-    
-    @GetMapping("/students/group-by-school")
-    public ResponseEntity<Map<String, Object>> getStudentsGroupBySchool(
-            @RequestParam(required = false) String name,
-            @RequestParam(required = false) String grade,
-            @RequestParam(required = false) String schoolName,
-            @RequestParam(required = false) String gender) {
+			return ResponseEntity.ok(response);
 
-        try {
-            Map<String, String> filters = new HashMap<>();
-            if (name != null) filters.put("name", name);
-            if (grade != null) filters.put("grade", grade);
-            if (schoolName != null) filters.put("schoolName", schoolName);
-            if (gender != null) filters.put("gender", gender);
+		} catch (Exception e) {
+			return createErrorResponse(e);
+		}
+	}
 
-            StudentGroupResponseDTO serviceResponse =
-                    studentService.getAllStudentsGroupBySchool(filters);
+	/**
+	 * === handleGetStudentById === Lấy chi tiết 1 học sinh
+	 */
+	@GetMapping("/students/{id}")
+	public ResponseEntity<Map<String, Object>> getStudentById(@PathVariable Long id) {
+		try {
+			StudentDTO studentDTO = studentService.getStudentById(id);
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("errCode", 0);
-            response.put("message", "OK");
-            response.put("totalStudents", serviceResponse.getTotalStudents());
-            response.put("data", serviceResponse.getStudentsBySchool());
-            response.put("totalStudentsBySchool", serviceResponse.getTotalStudentsBySchool());
+			Map<String, Object> response = new HashMap<>();
+			response.put("errCode", 0);
+			response.put("message", "OK");
+			response.put("data", studentDTO);
 
-            return ResponseEntity.ok(response);
+			return ResponseEntity.ok(response);
+		} catch (Exception e) {
+			return createErrorResponse(e, 404);
+		}
+	}
 
-        } catch (Exception e) {
-            return createErrorResponse(e);
-        }
-    }
+	/**
+	 * === handleCreateNewStudent === Tạo mới (Multipart: form-data)
+	 */
+	@PostMapping(value = "/students", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ResponseEntity<Map<String, Object>> createNewStudent(@ModelAttribute CreateStudentDTO studentDTO,
+			@RequestPart(value = "file", required = false) MultipartFile file) {
+		try {
+			User newStudent = studentService.createNewStudent(studentDTO, file);
 
+			Map<String, Object> response = new HashMap<>();
+			response.put("errCode", 0);
+			response.put("message", "Thêm học sinh mới thành công!");
+			response.put("newId", newStudent.getId());
 
-    /**
-     * === handleGetStudentById ===
-     * Lấy chi tiết 1 học sinh
-     */
-    @GetMapping("/students/{id}")
-    public ResponseEntity<Map<String, Object>> getStudentById(@PathVariable Long id) {
-        try {
-            StudentDTO studentDTO = studentService.getStudentById(id);
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("errCode", 0);
-            response.put("message", "OK");
-            response.put("data", studentDTO);
-            
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            return createErrorResponse(e, 404); 
-        }
-    }
+			return ResponseEntity.status(HttpStatus.CREATED).body(response);
 
-    /**
-     * === handleCreateNewStudent ===
-     * Tạo mới (Multipart: form-data)
-     */
-    @PostMapping(value = "/students", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Map<String, Object>> createNewStudent(
-            @ModelAttribute CreateStudentDTO studentDTO,
-            @RequestPart(value = "file", required = false) MultipartFile file) {
-        try {
-            User newStudent = studentService.createNewStudent(studentDTO, file);
+		} catch (Exception e) {
+			return createErrorResponse(e, 400);
+		}
+	}
+	
+	/**
+	 * === handleUpdateStudent === Cập nhật (Multipart: form-data)
+	 */
+	@PutMapping(value = "/students/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ResponseEntity<Map<String, Object>> updateStudent(@PathVariable Long id,
+			@ModelAttribute CreateStudentDTO studentDTO, // Dùng chung DTO Create cho Update
+			@RequestPart(value = "file", required = false) MultipartFile file) {
+		try {
+			studentService.updateStudent(id, studentDTO, file);
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("errCode", 0);
-            response.put("message", "Thêm học sinh mới thành công!");
-            response.put("newId", newStudent.getId());
-            
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+			Map<String, Object> response = new HashMap<>();
+			response.put("errCode", 0);
+			response.put("message", "Cập nhật thông tin học sinh thành công!");
 
-        } catch (Exception e) {
-            return createErrorResponse(e, 400);
-        }
-    }
+			return ResponseEntity.ok(response);
 
-    /**
-     * === handleUpdateStudent ===
-     * Cập nhật (Multipart: form-data)
-     */
-    @PutMapping(value = "/students/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Map<String, Object>> updateStudent(
-            @PathVariable Long id,
-            @ModelAttribute CreateStudentDTO studentDTO, // Dùng chung DTO Create cho Update
-            @RequestPart(value = "file", required = false) MultipartFile file) {
-        try {
-            studentService.updateStudent(id, studentDTO, file);
+		} catch (Exception e) {
+			return createErrorResponse(e, 400);
+		}
+	}
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("errCode", 0);
-            response.put("message", "Cập nhật thông tin học sinh thành công!");
-            
-            return ResponseEntity.ok(response);
+	/**
+	 * === handleDeleteStudent === Xóa 1 học sinh
+	 */
+	@DeleteMapping("/students/{id}")
+	public ResponseEntity<Map<String, Object>> deleteStudent(@PathVariable Long id) {
+		try {
+			studentService.deleteStudent(id);
 
-        } catch (Exception e) {
-            return createErrorResponse(e, 400);
-        }
-    }
+			Map<String, Object> response = new HashMap<>();
+			response.put("errCode", 0);
+			response.put("message", "Xóa học viên thành công!");
 
-    /**
-     * === handleDeleteStudent ===
-     * Xóa 1 học sinh
-     */
-    @DeleteMapping("/students/{id}")
-    public ResponseEntity<Map<String, Object>> deleteStudent(@PathVariable Long id) {
-        try {
-            studentService.deleteStudent(id);
+			return ResponseEntity.ok(response);
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("errCode", 0);
-            response.put("message", "Xóa học viên thành công!");
-            
-            return ResponseEntity.ok(response);
+		} catch (IllegalStateException e) {
+			// Học sinh còn nợ học phí → CONFLICT 409
+			return createErrorResponse(e, 409);
+		} catch (RuntimeException e) {
+			// Không tìm thấy học sinh, lỗi nghiệp vụ → NOT FOUND 404
+			return createErrorResponse(e, 404);
+		} catch (Exception e) {
+			// Lỗi khác → BAD REQUEST 400 hoặc INTERNAL SERVER ERROR 500
+			return createErrorResponse(e, 400);
+		}
+	}
 
-        } catch (IllegalStateException e) {
-            // Học sinh còn nợ học phí → CONFLICT 409
-            return createErrorResponse(e, 409);
-        } catch (RuntimeException e) {
-            // Không tìm thấy học sinh, lỗi nghiệp vụ → NOT FOUND 404
-            return createErrorResponse(e, 404);
-        } catch (Exception e) {
-            // Lỗi khác → BAD REQUEST 400 hoặc INTERNAL SERVER ERROR 500
-            return createErrorResponse(e, 400);
-        }
-    }
+	/**
+	 * === handleDeleteMultipleStudents === Xóa nhiều
+	 */
+	@PostMapping("/students/delete-multiple")
+	public ResponseEntity<Map<String, Object>> deleteMultipleStudents(@RequestBody Map<String, List<Long>> payload) {
+		try {
+			List<Long> ids = payload.get("ids");
+			if (ids == null || ids.isEmpty()) {
+				throw new RuntimeException("Danh sách ID học viên không hợp lệ!");
+			}
 
+			studentService.deleteMultipleStudents(ids);
 
-    /**
-     * === handleDeleteMultipleStudents ===
-     * Xóa nhiều
-     */
-    @PostMapping("/students/delete-multiple")
-    public ResponseEntity<Map<String, Object>> deleteMultipleStudents(
-            @RequestBody Map<String, List<Long>> payload) {
-        try {
-            List<Long> ids = payload.get("ids");
-            if (ids == null || ids.isEmpty()) {
-                throw new RuntimeException("Danh sách ID học viên không hợp lệ!");
-            }
+			Map<String, Object> response = new HashMap<>();
+			response.put("errCode", 0);
+			response.put("message", "Đã xóa " + ids.size() + " học viên thành công!");
 
-            studentService.deleteMultipleStudents(ids);
+			return ResponseEntity.ok(response);
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("errCode", 0);
-            response.put("message", "Đã xóa " + ids.size() + " học viên thành công!");
-            
-            return ResponseEntity.ok(response);
+		} catch (Exception e) {
+			return createErrorResponse(e, 400);
+		}
+	}
 
-        } catch (Exception e) {
-            return createErrorResponse(e, 400);
-        }
-    }
+	/**
+	 * === handleExportStudentsExcel === Xuất Excel
+	 */
+	@GetMapping("/students/export")
+	public ResponseEntity<?> exportStudentsExcel(@RequestParam(required = false) String name,
+			@RequestParam(required = false) String grade, @RequestParam(required = false) String schoolName,
+			@RequestParam(required = false) String gender) {
+		try {
+			Map<String, String> filters = new HashMap<>();
+			if (name != null)
+				filters.put("name", name);
+			if (grade != null)
+				filters.put("grade", grade);
+			if (schoolName != null)
+				filters.put("schoolName", schoolName);
+			if (gender != null)
+				filters.put("gender", gender);
 
-    /**
-     * === handleExportStudentsExcel ===
-     * Xuất Excel
-     */
-    @GetMapping("/students/export")
-    public ResponseEntity<?> exportStudentsExcel(
-            @RequestParam(required = false) String name,
-            @RequestParam(required = false) String grade,
-            @RequestParam(required = false) String schoolName,
-            @RequestParam(required = false) String gender) {
-        try {
-            Map<String, String> filters = new HashMap<>();
-            if (name != null) filters.put("name", name);
-            if (grade != null) filters.put("grade", grade);
-            if (schoolName != null) filters.put("schoolName", schoolName);
-            if (gender != null) filters.put("gender", gender);
+			byte[] buffer = studentService.exportStudentsToExcel(filters);
+			if (buffer == null || buffer.length == 0) {
+				return createErrorResponse(new RuntimeException("Không có dữ liệu để xuất!"), 404);
+			}
 
-            byte[] buffer = studentService.exportStudentsToExcel(filters);
+			HttpHeaders headers = new HttpHeaders();
+			headers.add("Content-Disposition", "attachment; filename=danh-sach-hoc-vien.xlsx");
 
-            if (buffer == null || buffer.length == 0) {
-                 return createErrorResponse(new RuntimeException("Không có dữ liệu để xuất!"), 404);
-            }
+			return ResponseEntity.ok().headers(headers).contentType(MediaType.APPLICATION_OCTET_STREAM).body(buffer);
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.add("Content-Disposition", "attachment; filename=danh-sach-hoc-vien.xlsx");
+		} catch (Exception e) {
+			return createErrorResponse(e);
+		}
+	}
 
-            return ResponseEntity.ok()
-                    .headers(headers)
-                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                    .body(buffer);
+	@GetMapping("/students/statistics")
+	public StudentStatisticDTO getStudentStatistics() {
+		return studentService.getStudentStatistics();
+	}
 
-        } catch (Exception e) {
-            return createErrorResponse(e);
-        }
-    }
-    
-    @GetMapping("/students/statistics")
-    public StudentStatisticDTO getStudentStatistics() {
-    	return studentService.getStudentStatistics();
-    }
+	// === Helper Functions ===
+	private ResponseEntity<Map<String, Object>> createErrorResponse(Exception e) {
+		return createErrorResponse(e, 500);
+	}
 
-    // === Helper Functions ===
-    private ResponseEntity<Map<String, Object>> createErrorResponse(Exception e) {
-        return createErrorResponse(e, 500);
-    }
+	private ResponseEntity<Map<String, Object>> createErrorResponse(Exception e, int statusCode) {
+		Map<String, Object> error = new HashMap<>();
+		error.put("errCode", statusCode);
+		error.put("message", e.getMessage() != null ? e.getMessage() : "Có lỗi xảy ra từ phía máy chủ!");
+		return ResponseEntity.status(statusCode).body(error);
+	}
 
-    private ResponseEntity<Map<String, Object>> createErrorResponse(Exception e, int statusCode) {
-        Map<String, Object> error = new HashMap<>();
-        error.put("errCode", statusCode);
-        error.put("message", e.getMessage() != null ? e.getMessage() : "Có lỗi xảy ra từ phía máy chủ!");
-        return ResponseEntity.status(statusCode).body(error);
-    }
-    
-    // lấy 5 học sinh mới nhất
-    @GetMapping("/students/latest")
-    public ResponseEntity<Map<String, Object>> getLatestStudents() {
-        try {
-            List<StudentDTO> students = studentService.getLatestStudents();
+	// lấy 5 học sinh mới nhất
+	@GetMapping("/students/latest")
+	public ResponseEntity<Map<String, Object>> getLatestStudents() {
+		try {
+			List<StudentDTO> students = studentService.getLatestStudents();
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("errCode", 0);
-            response.put("message", "OK");
-            response.put("data", students);
+			Map<String, Object> response = new HashMap<>();
+			response.put("errCode", 0);
+			response.put("message", "OK");
+			response.put("data", students);
 
-            return ResponseEntity.ok(response);
+			return ResponseEntity.ok(response);
 
-        } catch (Exception e) {
-            return createErrorResponse(e);
-        }
-    }
+		} catch (Exception e) {
+			return createErrorResponse(e);
+		}
+	}
+	
+	@GetMapping("/students/schools")
+	public ResponseEntity<Map<String, Object>> getDistinctSchools() {
+	    try {
+	        List<String> schools = studentService.getDistinctSchools();
+	        Map<String, Object> response = new HashMap<>();
+	        response.put("errCode", 0);
+	        response.put("message", "OK");
+	        response.put("data", schools);
+	        return ResponseEntity.ok(response);
+	    } catch (Exception e) {
+	        return createErrorResponse(e);
+	    }
+	}
+	
+	@PostMapping("/students/{id}/avatar")
+	public ResponseEntity<Map<String, Object>> updateAvatar(
+	        @PathVariable Long id,
+	        @RequestPart("file") MultipartFile file) {
+	    try {
+	        studentService.updateAvatar(id, file);
+	        Map<String, Object> response = new HashMap<>();
+	        response.put("errCode", 0);
+	        response.put("message", "Cập nhật ảnh đại diện thành công");
+	        return ResponseEntity.ok(response);
+	    } catch (Exception e) {
+	        return createErrorResponse(e, 400);
+	    }
+	}
+	
+	@GetMapping("/students")
+	public ResponseEntity<Map<String, Object>> getAllStudents(@RequestParam(defaultValue = "1") int page,
+			@RequestParam(defaultValue = "10") int limit, @RequestParam(required = false) String name,
+			@RequestParam(required = false) String grade, @RequestParam(required = false) String schoolName,
+			@RequestParam(required = false) String gender, @RequestParam(required = false) String subject,
+			@RequestParam(required = false) String status) { // Thêm filter subject
+		try {
+			Map<String, String> filters = new HashMap<>();
+			if (name != null)
+				filters.put("name", name);
+			if (grade != null)
+				filters.put("grade", grade);
+			if (schoolName != null)
+				filters.put("schoolName", schoolName);
+			if (gender != null)
+				filters.put("gender", gender);
+			if (subject != null)
+				filters.put("subject", subject);
+			if (status != null)
+				filters.put("status", status);
+
+			PaginatedResponseDTO<StudentDTO> serviceResponse = studentService.getAllStudents(page, limit, filters);
+
+			Map<String, Object> response = new HashMap<>();
+			response.put("errCode", 0);
+			response.put("message", "OK");
+			response.put("data", serviceResponse.data);
+			response.put("pagination", serviceResponse.pagination);
+
+			return ResponseEntity.ok(response);
+
+		} catch (Exception e) {
+			return createErrorResponse(e);
+		}
+	}
 }

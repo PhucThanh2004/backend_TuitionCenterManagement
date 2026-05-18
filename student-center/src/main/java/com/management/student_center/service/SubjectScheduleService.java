@@ -89,7 +89,7 @@ public class SubjectScheduleService {
     }
 
     // helper mapper
-    private SessionDTO toDto(Session s) {
+    /*private SessionDTO toDto(Session s) {
 
         RoomDTO roomDto = null;
         if (s.getRoom() != null) {
@@ -117,6 +117,60 @@ public class SubjectScheduleService {
                 roomDto,
                 scheduleDto
         );
+    }*/
+    
+    private SessionDTO toDto(Session s) {
+        String realtimeStatus = resolveStatus(s);
+        
+        RoomDTO roomDto = null;
+        if (s.getRoom() != null) {
+            roomDto = new RoomDTO(s.getRoom().getName());
+        }
+
+        ScheduleInfoDTO scheduleDto = null;
+        if (s.getSchedule() != null) {
+            scheduleDto = new ScheduleInfoDTO(
+                    s.getSchedule().getDayOfWeek(),
+                    s.getSchedule().getStartTime(),
+                    s.getSchedule().getEndTime()
+            );
+        }
+
+        return new SessionDTO(
+                s.getId(),
+                s.getSubject() != null ? s.getSubject().getId() : null,
+                s.getSchedule() != null ? s.getSchedule().getId() : null,
+                s.getSessionDate(),
+                s.getStartTime(),
+                s.getEndTime(),
+                s.getRoom() != null ? s.getRoom().getId() : null,
+                realtimeStatus,  
+                roomDto,
+                scheduleDto
+        );
+    }
+    
+    private String resolveStatus(Session session) {
+        String dbStatus = session.getStatus();
+
+        if ("canceled".equals(dbStatus)) return "canceled";
+        if ("completed".equals(dbStatus)) return "completed";
+
+        LocalDate sessionDate = session.getSessionDate();
+        LocalDate today = LocalDate.now();
+
+        LocalTime now = LocalTime.now();
+        LocalTime start = session.getStartTime();
+        LocalTime end = session.getEndTime();
+
+        if (sessionDate.isAfter(today)) return "scheduled";
+        if (sessionDate.isBefore(today)) return "expired";
+
+        // today
+        if (now.isBefore(start)) return "scheduled";
+        if (now.isAfter(end)) return "expired";
+
+        return "ongoing";
     }
     
     @Transactional

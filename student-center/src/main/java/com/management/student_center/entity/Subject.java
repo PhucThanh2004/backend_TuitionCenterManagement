@@ -33,6 +33,10 @@ public class Subject {
 
     @Column(columnDefinition = "TEXT")
     private String note;
+    
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "subject_type_id", nullable = true)
+    private SubjectType subjectType;
 
     // Quan hệ với StudentSubject
     @OneToMany(mappedBy = "subject")
@@ -118,5 +122,13 @@ public class Subject {
 
     public void setCurrentStudents(Long currentStudents) {
         this.currentStudents = currentStudents;
+    }
+    
+    public SubjectType getSubjectType() {
+        return subjectType;
+    }
+
+    public void setSubjectType(SubjectType subjectType) {
+        this.subjectType = subjectType;
     }
 }

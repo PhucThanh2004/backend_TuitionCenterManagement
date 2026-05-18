@@ -10,6 +10,7 @@ public class UpdateSubjectRequest {
     private String note;
     private Long teacherId;      // Có thể null hoặc "" ở frontend
     private Double salaryRate;   // Có thể null, default = 0
+    private Long subjectTypeId;
 
     // Getters & Setters
     public String getName() { return name; }
@@ -38,4 +39,12 @@ public class UpdateSubjectRequest {
 
     public Double getSalaryRate() { return salaryRate; }
     public void setSalaryRate(Double salaryRate) { this.salaryRate = salaryRate; }
+	public Long getSubjectTypeId() {
+		return subjectTypeId;
+	}
+	public void setSubjectTypeId(Long subjectTypeId) {
+		this.subjectTypeId = subjectTypeId;
+	}
+    
+    
 }

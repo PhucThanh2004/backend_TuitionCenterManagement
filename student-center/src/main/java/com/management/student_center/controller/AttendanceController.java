@@ -2,10 +2,12 @@ package com.management.student_center.controller;
 
 import com.management.student_center.dto.AttendanceResponseDTO;
 import com.management.student_center.dto.AttendanceStudentDTO;
+import com.management.student_center.dto.TodayAttendanceDTO;
 import com.management.student_center.entity.Student;
 import com.management.student_center.service.AttendanceService;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -21,6 +23,20 @@ public class AttendanceController {
 
     public AttendanceController(AttendanceService attendanceService) {
         this.attendanceService = attendanceService;
+    }
+    
+    @GetMapping("/subjects/{subjectId}/attendance")
+    public ResponseEntity<?> getAttendanceByDate(
+            @PathVariable Long subjectId,
+            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+
+        TodayAttendanceDTO data = attendanceService.getAttendanceByDate(subjectId, date);
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("message", "Lấy điểm danh thành công");
+        res.put("data", data);
+
+        return ResponseEntity.ok(res);
     }
     
     @GetMapping("/attendance/absent-or-late")
@@ -44,7 +60,6 @@ public class AttendanceController {
  // PUT /v1/api/attendance/status
     @PutMapping("/attendance/status")
     public ResponseEntity<?> updateStatus(@RequestBody StatusRequest req) {
-        // đổi thứ tự: studentId trước, sessionId sau
         String message = attendanceService.updateStatus(req.studentId, req.sessionId, req.status);
         return ResponseEntity.ok(message);
     }

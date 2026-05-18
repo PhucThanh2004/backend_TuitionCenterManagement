@@ -16,7 +16,7 @@ public class TeacherSpecification {
 
 	public static Specification<Teacher> nameContains(String name) {
 		if (name == null || name.isEmpty())
-			return null; // Bỏ qua nếu filter rỗng
+			return null;
 		return (root, query, cb) -> {
 			Join<Teacher, User> userJoin = root.join("userInfo");
 			return cb.like(cb.lower(userJoin.get("fullName")), "%" + name.toLowerCase() + "%");
@@ -25,7 +25,7 @@ public class TeacherSpecification {
 
 	public static Specification<Teacher> genderIs(Boolean gender) {
 		if (gender == null)
-			return null; // Bỏ qua nếu filter rỗng
+			return null;
 		return (root, query, cb) -> {
 			Join<Teacher, User> userJoin = root.join("userInfo");
 			return cb.equal(userJoin.get("gender"), gender);
@@ -36,8 +36,16 @@ public class TeacherSpecification {
 		if (specialty == null || specialty.isEmpty())
 			return null;
 		return (root, query, cb) -> {
-			// SỬA THÀNH: "specialty"
 			return cb.like(cb.lower(root.get("specialty")), "%" + specialty.toLowerCase() + "%");
+		};
+	}
+
+	public static Specification<Teacher> hasStatus(Boolean status) {
+		return (root, query, cb) -> {
+			if (status == null)
+				return cb.conjunction();
+			Join<Teacher, User> userJoin = root.join("userInfo");
+			return cb.equal(userJoin.get("status"), status);
 		};
 	}
 }

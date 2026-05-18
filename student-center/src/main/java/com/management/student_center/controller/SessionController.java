@@ -7,11 +7,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.management.student_center.dto.DailySessionDTO;
+import com.management.student_center.dto.SessionDetailDTO;
 import com.management.student_center.dto.UpcomingSessionDTO;
 import com.management.student_center.service.SessionService;
 
@@ -33,5 +35,11 @@ public class SessionController {
     @GetMapping("/upcoming")
     public ResponseEntity<List<UpcomingSessionDTO>> getUpcomingSessions() {
         return ResponseEntity.ok(sessionService.getTop4UpcomingSessions());
+    }
+    
+    @GetMapping("/{sessionId}/detail")
+    public ResponseEntity<SessionDetailDTO> getSessionDetail(@PathVariable Long sessionId) {
+        SessionDetailDTO sessionDetail = sessionService.getSessionDetail(sessionId);
+        return ResponseEntity.ok(sessionDetail);
     }
 }

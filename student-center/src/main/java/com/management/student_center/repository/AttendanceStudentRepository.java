@@ -38,4 +38,11 @@
 	           "AND a.session.sessionDate BETWEEN :startDate AND :endDate")
 	    List<AttendanceStudent> findAbsentOrLateBetweenDates(@Param("startDate") LocalDate startDate,
 	                                                        @Param("endDate") LocalDate endDate);
+	    
+	    List<AttendanceStudent> findAllBySessionIn(List<Session> sessions);
+	    
+	    List<AttendanceStudent> findBySession(Session session);
+	    
+	    // Optional: Kiểm tra xem có attendance present/late không
+	    boolean existsBySessionAndStatusIn(Session session, List<String> statuses);
 	}

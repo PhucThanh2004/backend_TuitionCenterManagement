@@ -3,6 +3,8 @@ package com.management.student_center.dto;
 import java.math.BigDecimal;
 import java.util.List;
 
+import com.management.student_center.dto.subject.SubjectTypeDTO;
+
 public class SubjectDTO {
     private Long id;
     private String name;
@@ -15,6 +17,7 @@ public class SubjectDTO {
     private String note;
     private Long currentStudents;
     private List<TeacherSubjectDTO> teacherSubjects;
+    private SubjectTypeDTO subjectType;
 
     // Add createdAt and updatedAt
     private String createdAt;
@@ -125,4 +128,13 @@ public class SubjectDTO {
     public void setTeacherSubjects(List<TeacherSubjectDTO> teacherSubjects) {
         this.teacherSubjects = teacherSubjects;
     }
+
+	public SubjectTypeDTO getSubjectType() {
+		return subjectType;
+	}
+
+	public void setSubjectType(SubjectTypeDTO subjectType) {
+		this.subjectType = subjectType;
+	}
+    
 }
