@@ -11,10 +11,13 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import com.management.student_center.dto.DailySessionDTO;
+import com.management.student_center.dto.SessionActualContentDTO;
+import com.management.student_center.dto.SessionContentDTO;
 import com.management.student_center.dto.SessionDetailDTO;
 import com.management.student_center.dto.SessionDetailDTO.TeacherAttendanceInfo;
 import com.management.student_center.dto.UpcomingSessionDTO;
 import com.management.student_center.entity.Session;
+import com.management.student_center.entity.SessionDetail;
 import com.management.student_center.entity.Student;
 import com.management.student_center.entity.StudentSubject;
 import com.management.student_center.entity.Subject;
@@ -25,6 +28,7 @@ import com.management.student_center.entity.User;
 import com.management.student_center.entity.AttendanceStudent;
 import com.management.student_center.entity.LeaveAffectedSession;
 import com.management.student_center.repository.LeaveAffectedSessionRepository;
+import com.management.student_center.repository.SessionDetailRepository;
 import com.management.student_center.repository.SessionRepository;
 import com.management.student_center.repository.TeacherLeaveRepository;
 import com.management.student_center.repository.TeacherRepository;
@@ -39,6 +43,9 @@ public class SessionService {
 
     @Autowired
     private LeaveAffectedSessionRepository leaveAffectedSessionRepository;
+    
+    @Autowired 
+    private SessionDetailRepository sessionDetailRepository;
 
     @Autowired
     private TeacherRepository teacherRepository;
@@ -317,6 +324,76 @@ public class SessionService {
                 studentAttendanceInfos,
                 teacherAttendanceInfo
         );
+    }
+    
+    public void updateActualContent(Long sessionId, SessionActualContentDTO request) {
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy buổi học với id: " + sessionId));
+        
+        session.setIsFollowPlan(request.getIsFollowPlan());
+        
+        if (request.getIsFollowPlan()) {
+            // Nếu dạy đúng kế hoạch, chỉ cần set planned session detail
+            if (request.getPlannedSessionDetailId() != null) {
+                SessionDetail plannedDetail = sessionDetailRepository.findById(request.getPlannedSessionDetailId())
+                        .orElseThrow(() -> new RuntimeException("Không tìm thấy kế hoạch"));
+                session.setPlannedSessionDetail(plannedDetail);
+            }
+            // Clear các field thực tế
+            session.setActualTopic(null);
+            session.setActualContent(null);
+            session.setActualHomework(null);
+            session.setDeviationReason(null);
+        } else {
+            // Nếu dạy lệch, cập nhật đầy đủ thông tin thực tế
+            if (request.getPlannedSessionDetailId() != null) {
+                SessionDetail plannedDetail = sessionDetailRepository.findById(request.getPlannedSessionDetailId())
+                        .orElseThrow(() -> new RuntimeException("Không tìm thấy kế hoạch"));
+                session.setPlannedSessionDetail(plannedDetail);
+            }
+            session.setActualTopic(request.getActualTopic());
+            session.setActualContent(request.getActualContent());
+            session.setActualHomework(request.getActualHomework());
+            session.setDeviationReason(request.getDeviationReason());
+            session.setNoteForNextSession(request.getNoteForNextSession());
+        }
+        
+        sessionRepository.save(session);
+    }
+
+    public SessionContentDTO getSessionContent(Long sessionId) {
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy buổi học"));
+        
+        SessionContentDTO content = new SessionContentDTO();
+        content.setSessionId(session.getId());
+        content.setSessionDate(session.getSessionDate());
+        content.setStartTime(session.getStartTime());
+        content.setEndTime(session.getEndTime());
+        
+        if (session.getIsFollowPlan() && session.getPlannedSessionDetail() != null) {
+            // Dạy đúng kế hoạch
+            SessionDetail plan = session.getPlannedSessionDetail();
+            content.setDisplayTopic(plan.getTopic());
+            content.setDisplayContent(plan.getContent());
+            content.setDisplayHomework(plan.getHomework());
+            content.setIsFollowingPlan(true);
+        } else if (!session.getIsFollowPlan()) {
+            // Dạy lệch
+            content.setDisplayTopic(session.getActualTopic());
+            content.setDisplayContent(session.getActualContent());
+            content.setDisplayHomework(session.getActualHomework());
+            content.setIsFollowingPlan(false);
+            content.setDeviationReason(session.getDeviationReason());
+            content.setNoteForNextSession(session.getNoteForNextSession());
+            
+            // Vẫn hiển thị kế hoạch để so sánh
+            if (session.getPlannedSessionDetail() != null) {
+                content.setPlannedTopic(session.getPlannedSessionDetail().getTopic());
+            }
+        }
+        
+        return content;
     }
 
 }

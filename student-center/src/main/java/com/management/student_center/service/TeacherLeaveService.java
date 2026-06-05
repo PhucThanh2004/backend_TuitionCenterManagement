@@ -213,30 +213,26 @@ public class TeacherLeaveService {
 			las.setLeave(leave);
 			las.setSession(session);
 			las.setOriginalTeacherId(leave.getTeacher().getId().intValue());
-			// ==========================================
-			// HƯỚNG 1: HỦY LỚP
-			// ==========================================
+
 			if (leave.getAffectType() == TeacherLeave.AffectType.CANCEL) {
 				las.setStatus(LeaveAffectedSession.Status.SKIPPED);
 				las.setProcessedAt(LocalDateTime.now());
 				session.setStatus("cancelled");
 				sessionRepository.save(session);
-			}
-
-			// ==========================================
-			// HƯỚNG 2: TÌM GIÁO VIÊN THAY
-			// ==========================================
-
-			else {
-				las.setStatus(LeaveAffectedSession.Status.PENDING);
-				las.setReplacementResponse(LeaveAffectedSession.ReplacementResponse.PENDING);
+			} else {
 				Long replacementTeacherId = findReplacementTeacherId(session.getId(), replacements);
 				if (replacementTeacherId != null) {
+					las.setStatus(LeaveAffectedSession.Status.ASSIGNED);
 					las.setReplacementTeacherId(replacementTeacherId.intValue());
+					las.setAssignedAt(LocalDateTime.now());
+				} else {
+					las.setStatus(LeaveAffectedSession.Status.PENDING);
 				}
+				las.setReplacementResponse(LeaveAffectedSession.ReplacementResponse.PENDING);
 			}
 			affectedSessionRepository.save(las);
 		}
+
 		if (leave.getAffectType() == TeacherLeave.AffectType.CANCEL) {
 			leave.setProcessed(true);
 			leaveRepository.save(leave);
@@ -262,6 +258,7 @@ public class TeacherLeaveService {
 			throw new RuntimeException("Đơn này không thuộc dạng REPLACE");
 		}
 		Session session = las.getSession();
+		// Kiểm tra conflict
 		boolean hasTeachingConflict = sessionRepository.existsTeacherSessionOverlap(
 				dto.getReplacementTeacherId().longValue(), session.getSessionDate(), session.getStartTime(),
 				session.getEndTime());
@@ -285,9 +282,12 @@ public class TeacherLeaveService {
 		las.setReplacementTeacherId(dto.getReplacementTeacherId());
 		las.setAdminNote(dto.getAdminNote());
 		las.setReplacementResponse(LeaveAffectedSession.ReplacementResponse.PENDING);
+		las.setStatus(LeaveAffectedSession.Status.ASSIGNED);
+		las.setAssignedAt(LocalDateTime.now());
+
 		affectedSessionRepository.save(las);
-		// TODO:
-		// gửi notification cho teacher
+
+		// TODO: Gửi notification cho giáo viên được chỉ định
 	}
 
 	// =========================================================
@@ -317,10 +317,9 @@ public class TeacherLeaveService {
 		// ==========================================
 		// ACCEPT
 		// ==========================================
-
 		if (dto.getResponse() == LeaveAffectedSession.ReplacementResponse.ACCEPTED) {
 			las.setReplacementResponse(LeaveAffectedSession.ReplacementResponse.ACCEPTED);
-			las.setStatus(LeaveAffectedSession.Status.RESOLVED);
+			las.setStatus(LeaveAffectedSession.Status.RESOLVED); // ✅ ACCEPT → RESOLVED
 			las.setProcessedAt(LocalDateTime.now());
 			las.setReplacementResponseAt(LocalDateTime.now());
 			affectedSessionRepository.save(las);
@@ -332,9 +331,12 @@ public class TeacherLeaveService {
 		// ==========================================
 		if (dto.getResponse() == LeaveAffectedSession.ReplacementResponse.REJECTED) {
 			las.setReplacementResponse(LeaveAffectedSession.ReplacementResponse.REJECTED);
-			las.setStatus(LeaveAffectedSession.Status.PENDING);
+			las.setStatus(LeaveAffectedSession.Status.DECLINED);
 			las.setReplacementTeacherId(null);
 			las.setReplacementResponseAt(LocalDateTime.now());
+			if (dto.getReason() != null && !dto.getReason().isBlank()) {
+				las.setDeclineReason(dto.getReason());
+			}
 			affectedSessionRepository.save(las);
 		}
 	}
@@ -378,6 +380,10 @@ public class TeacherLeaveService {
 				teacherRepository.findById(las.getReplacementTeacherId().longValue())
 						.ifPresent(teacher -> dto.setReplacementTeacherName(teacher.getUserInfo().getFullName()));
 			}
+			dto.setAssignedAt(las.getAssignedAt());
+			dto.setRespondedAt(las.getReplacementResponseAt());
+			dto.setDeclineReason(las.getDeclineReason());
+
 			return dto;
 		}).collect(Collectors.toList());
 	}

@@ -1,5 +1,6 @@
 package com.management.student_center.dto.leave;
 
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 public class LeaveAffectedSessionDTO {
@@ -23,6 +24,28 @@ public class LeaveAffectedSessionDTO {
 
     private String originalTeacherName;
     
+    private LocalDateTime assignedAt;      // Thời gian admin phân công
+    private LocalDateTime respondedAt;     // Thời gian giáo viên phản hồi
+    private String declineReason;          // Lý do từ chối
+    
+	public LocalDateTime getAssignedAt() {
+		return assignedAt;
+	}
+	public void setAssignedAt(LocalDateTime assignedAt) {
+		this.assignedAt = assignedAt;
+	}
+	public LocalDateTime getRespondedAt() {
+		return respondedAt;
+	}
+	public void setRespondedAt(LocalDateTime respondedAt) {
+		this.respondedAt = respondedAt;
+	}
+	public String getDeclineReason() {
+		return declineReason;
+	}
+	public void setDeclineReason(String declineReason) {
+		this.declineReason = declineReason;
+	}
 	public Long getId() {
 		return id;
 	}

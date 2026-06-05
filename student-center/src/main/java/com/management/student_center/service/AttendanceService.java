@@ -3,12 +3,18 @@ package com.management.student_center.service;
 import com.management.student_center.dto.AttendanceResponseDTO;
 import com.management.student_center.dto.AttendanceStudentDTO;
 import com.management.student_center.dto.TodayAttendanceDTO;
+import com.management.student_center.dto.studentSubjectDto.AttendanceHistoryDTO;
+import com.management.student_center.dto.studentSubjectDto.AttendanceStatisticsDTO;
 import com.management.student_center.entity.*;
 import com.management.student_center.repository.*;
 import com.management.student_center.enums.ActivityActionType;
 import com.management.student_center.enums.ActivityTargetType;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.*;
@@ -23,6 +29,10 @@ public class AttendanceService {
     private final StudentRepository studentRepository;
     private final ActivityLogService activityLogService;
     private final CurrentUserService currentUserService;
+    
+    
+    @Autowired
+    private SubjectRepository subjectRepository;
 
     public AttendanceService(
             SessionRepository sessionRepository,
@@ -512,5 +522,69 @@ public class AttendanceService {
                   .replace("\n", "\\n")
                   .replace("\r", "\\r")
                   .replace("\t", "\\t");
+    }
+    
+    public AttendanceStatisticsDTO getStudentAttendanceBySubject(Long studentId, Long subjectId) {
+        // Kiểm tra student tồn tại
+        Student student = studentRepository.findById(studentId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found with id: " + studentId));
+        
+        // Kiểm tra subject tồn tại
+        Subject subject = subjectRepository.findById(subjectId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Subject not found with id: " + subjectId));
+        
+        // Lấy thống kê
+        Integer totalSessions = attendanceStudentRepository.countTotalSessionsByStudentAndSubject(studentId, subjectId);
+        Integer presentCount = attendanceStudentRepository.countPresentByStudentAndSubject(studentId, subjectId);
+        Integer absentCount = attendanceStudentRepository.countAbsentByStudentAndSubject(studentId, subjectId);
+        Integer lateCount = attendanceStudentRepository.countLateByStudentAndSubject(studentId, subjectId);
+        
+        // Tính tỉ lệ chuyên cần (present + late) / total
+        Double attendanceRate = 0.0;
+        if (totalSessions != null && totalSessions > 0) {
+            int attended = (presentCount != null ? presentCount : 0) + (lateCount != null ? lateCount : 0);
+            attendanceRate = (attended * 100.0) / totalSessions;
+        }
+        
+        // Lấy lịch sử điểm danh chi tiết
+        List<AttendanceStudent> attendanceList = attendanceStudentRepository.findByStudentIdAndSubjectId(studentId, subjectId);
+        
+        List<AttendanceHistoryDTO> history = attendanceList.stream()
+            .map(this::convertToHistoryDTO)
+            .collect(Collectors.toList());
+        
+        // Build response
+        AttendanceStatisticsDTO response = new AttendanceStatisticsDTO();
+        response.setStudentId(studentId);
+        response.setSubjectId(subjectId);
+        response.setSubjectName(subject.getName()); 
+        response.setTotalSessions(totalSessions != null ? totalSessions : 0);
+        response.setPresentCount(presentCount != null ? presentCount : 0);
+        response.setAbsentCount(absentCount != null ? absentCount : 0);
+        response.setLateCount(lateCount != null ? lateCount : 0);
+        response.setAttendanceRate(Math.round(attendanceRate * 100.0) / 100.0);
+        response.setHistory(history);
+        
+        return response;
+    }
+    
+    private AttendanceHistoryDTO convertToHistoryDTO(AttendanceStudent attendance) {
+        AttendanceHistoryDTO dto = new AttendanceHistoryDTO();
+        dto.setAttendanceId(attendance.getId());
+        dto.setStatus(attendance.getStatus());
+        dto.setNote(attendance.getNote());
+        
+        if (attendance.getSession() != null) {
+            dto.setSessionId(attendance.getSession().getId());
+            dto.setSessionDate(attendance.getSession().getSessionDate());
+            dto.setStartTime(attendance.getSession().getStartTime());
+            dto.setEndTime(attendance.getSession().getEndTime());
+            
+            if (attendance.getSession().getRoom() != null) {
+                dto.setRoomName(attendance.getSession().getRoom().getName()); // Giả sử Room có getName()
+            }
+        }
+        
+        return dto;
     }
 }

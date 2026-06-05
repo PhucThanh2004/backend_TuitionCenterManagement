@@ -7,12 +7,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.management.student_center.dto.DailySessionDTO;
+import com.management.student_center.dto.SessionActualContentDTO;
+import com.management.student_center.dto.SessionContentDTO;
 import com.management.student_center.dto.SessionDetailDTO;
 import com.management.student_center.dto.UpcomingSessionDTO;
 import com.management.student_center.service.SessionService;
@@ -41,5 +45,21 @@ public class SessionController {
     public ResponseEntity<SessionDetailDTO> getSessionDetail(@PathVariable Long sessionId) {
         SessionDetailDTO sessionDetail = sessionService.getSessionDetail(sessionId);
         return ResponseEntity.ok(sessionDetail);
+    }
+    
+    // Cập nhật nội dung thực tế của buổi học
+    @PatchMapping("/{sessionId}/actual-content")
+    public ResponseEntity<Void> updateActualContent(
+            @PathVariable Long sessionId,
+            @RequestBody SessionActualContentDTO request) {
+        sessionService.updateActualContent(sessionId, request);
+        return ResponseEntity.ok().build();
+    }
+
+    // Lấy nội dung buổi học (kết hợp kế hoạch + thực tế)
+    @GetMapping("/{sessionId}/content")
+    public ResponseEntity<?> getSessionContent(@PathVariable Long sessionId) {
+        SessionContentDTO content = sessionService.getSessionContent(sessionId);
+        return ResponseEntity.ok(content);
     }
 }

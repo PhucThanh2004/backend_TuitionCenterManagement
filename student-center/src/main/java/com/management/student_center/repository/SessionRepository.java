@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface SessionRepository extends JpaRepository<Session, Long> {
+	boolean existsByPlannedSessionDetailId(Long sessionDetailId);
 
 	List<Session> findBySubject_IdOrderBySessionDateAsc(Long subjectId);
 
@@ -157,7 +158,7 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
 			    AND s.status = 'scheduled'
 			""")
 	Session findActiveSessionByRoomId(@Param("roomId") Long roomId);
-	
+
 	@Query("SELECT s FROM Session s WHERE s.subject.id IN :subjectIds AND s.sessionDate BETWEEN :startDate AND :endDate")
 	List<Session> findSessionsForLeave(@Param("subjectIds") List<Integer> subjectIds,
 			@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);

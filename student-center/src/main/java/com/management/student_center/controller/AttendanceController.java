@@ -3,6 +3,7 @@ package com.management.student_center.controller;
 import com.management.student_center.dto.AttendanceResponseDTO;
 import com.management.student_center.dto.AttendanceStudentDTO;
 import com.management.student_center.dto.TodayAttendanceDTO;
+import com.management.student_center.dto.studentSubjectDto.AttendanceStatisticsDTO;
 import com.management.student_center.entity.Student;
 import com.management.student_center.service.AttendanceService;
 
@@ -74,5 +75,14 @@ public class AttendanceController {
 
     public record StatusRequest(Long sessionId, Long studentId, String status) {}
     public record NoteRequest(Long sessionId, Long studentId, String note) {}
+    
+    @GetMapping("/attendance/statistics/student/{studentId}/subject/{subjectId}")
+    public ResponseEntity<AttendanceStatisticsDTO> getStudentAttendanceStatistics(
+            @PathVariable Long studentId,
+            @PathVariable Long subjectId) {
+        
+        AttendanceStatisticsDTO statistics = attendanceService.getStudentAttendanceBySubject(studentId, subjectId);
+        return ResponseEntity.ok(statistics);
+    }
 }
 

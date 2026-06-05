@@ -37,11 +37,22 @@ public class Teacher {
     private List<TeacherSubject> teacherSubjects;
 
     // Quan hệ với TeacherPayment
-    @OneToMany(mappedBy = "teacher", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "teacherInfo", cascade = CascadeType.ALL)
     @JsonIgnore
     private List<TeacherPayment> teacherPayments;
     
-    @CreationTimestamp
+    @OneToMany(mappedBy = "teacherInfo", cascade = CascadeType.ALL)
+    @JsonIgnore
+    private List<SessionTeacher> sessionTeachers;
+    
+    public List<SessionTeacher> getSessionTeachers() {
+		return sessionTeachers;
+	}
+
+	public void setSessionTeachers(List<SessionTeacher> sessionTeachers) {
+		this.sessionTeachers = sessionTeachers;
+	}
+	@CreationTimestamp
     private LocalDateTime createdAt;
 
     @UpdateTimestamp

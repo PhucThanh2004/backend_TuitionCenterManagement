@@ -45,4 +45,25 @@
 	    
 	    // Optional: Kiểm tra xem có attendance present/late không
 	    boolean existsBySessionAndStatusIn(Session session, List<String> statuses);
+	    
+	    // Lấy tất cả attendance của student theo subject
+	    @Query("SELECT a FROM AttendanceStudent a WHERE a.student.id = :studentId AND a.session.subject.id = :subjectId ORDER BY a.session.sessionDate DESC, a.session.startTime DESC")
+	    List<AttendanceStudent> findByStudentIdAndSubjectId(@Param("studentId") Long studentId, @Param("subjectId") Long subjectId);
+	    
+	    // Đếm tổng số buổi tham gia môn học (các buổi có attendance record)
+	    @Query("SELECT COUNT(DISTINCT a.session) FROM AttendanceStudent a WHERE a.student.id = :studentId AND a.session.subject.id = :subjectId")
+	    Integer countTotalSessionsByStudentAndSubject(@Param("studentId") Long studentId, @Param("subjectId") Long subjectId);
+	    
+	    // Đếm số buổi có mặt
+	    @Query("SELECT COUNT(a) FROM AttendanceStudent a WHERE a.student.id = :studentId AND a.session.subject.id = :subjectId AND a.status = 'present'")
+	    Integer countPresentByStudentAndSubject(@Param("studentId") Long studentId, @Param("subjectId") Long subjectId);
+	    
+	    // Đếm số buổi vắng
+	    @Query("SELECT COUNT(a) FROM AttendanceStudent a WHERE a.student.id = :studentId AND a.session.subject.id = :subjectId AND a.status = 'absent'")
+	    Integer countAbsentByStudentAndSubject(@Param("studentId") Long studentId, @Param("subjectId") Long subjectId);
+	    
+	    // Đếm số buổi trễ
+	    @Query("SELECT COUNT(a) FROM AttendanceStudent a WHERE a.student.id = :studentId AND a.session.subject.id = :subjectId AND a.status = 'late'")
+	    Integer countLateByStudentAndSubject(@Param("studentId") Long studentId, @Param("subjectId") Long subjectId);
+	
 	}

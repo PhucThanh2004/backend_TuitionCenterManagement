@@ -2,6 +2,7 @@ package com.management.student_center.entity;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.LocalDateTime;
@@ -54,6 +55,11 @@ public class Subject {
 
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "subject", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("orderIndex ASC")
+    @JsonIgnore
+    private List<Curriculum> curriculums = new ArrayList<>();
 
     // Constructor mặc định
     public Subject() {
@@ -131,4 +137,7 @@ public class Subject {
     public void setSubjectType(SubjectType subjectType) {
         this.subjectType = subjectType;
     }
+    
+    public List<Curriculum> getCurriculums() { return curriculums; }
+    public void setCurriculums(List<Curriculum> curriculums) { this.curriculums = curriculums; }
 }
