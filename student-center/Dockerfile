@@ -15,7 +15,7 @@ COPY src ./src
 RUN mvn clean package -DskipTests
 
 # Stage 2: Chạy ứng dụng
-FROM openjdk:17-jdk-slim
+FROM eclipse-temurin:17-jre-alpine
 
 # Tạo thư mục làm việc
 WORKDIR /app
@@ -23,7 +23,7 @@ WORKDIR /app
 # Copy file JAR từ stage build
 COPY --from=build /app/target/student-center-0.0.1-SNAPSHOT.jar app.jar
 
-# Mở port 8088 (port ứng dụng của bạn)
+# Mở port 8088
 EXPOSE 8088
 
 # Chạy ứng dụng
