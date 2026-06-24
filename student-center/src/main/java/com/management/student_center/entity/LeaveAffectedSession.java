@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -57,6 +58,9 @@ public class LeaveAffectedSession {
 	// ✅ THÊM: Lý do từ chối (nếu có)
 	@Column(name = "decline_reason", columnDefinition = "TEXT")
 	private String declineReason;
+	
+	@Column(name = "replacement_salary")
+	private BigDecimal replacementSalary;
 
 	// ================= ENUM =================
 
@@ -167,5 +171,13 @@ public class LeaveAffectedSession {
 
 	public void setDeclineReason(String declineReason) {
 		this.declineReason = declineReason;
+	}
+	
+	public BigDecimal getReplacementSalary() {
+	    return replacementSalary;
+	}
+
+	public void setReplacementSalary(BigDecimal replacementSalary) {
+	    this.replacementSalary = replacementSalary;
 	}
 }

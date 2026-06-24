@@ -5,15 +5,18 @@ import com.management.student_center.entity.Teacher;
 import com.management.student_center.repository.TeacherRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import com.management.student_center.dto.AddressDTO;
-import com.management.student_center.dto.PaginationDTO; // Đảm bảo import đúng
-import com.management.student_center.dto.PaginatedResponseDTO; // Đảm bảo import đúng
+import com.management.student_center.dto.PaginationDTO;
+import com.management.student_center.dto.PaginatedResponseDTO;
 import com.management.student_center.dto.teacher.*;
 
 import com.management.student_center.entity.*;
+import com.management.student_center.enums.ActivityActionType;
+import com.management.student_center.enums.ActivityTargetType;
 import com.management.student_center.repository.*;
 
 //Import Spring
@@ -50,10 +53,13 @@ public class TeacherService {
 	private final ImageService imageService;
 	private static final Map<String, String> roleMapping = Map.of("R0", "Admin", "R1", "Giáo viên", "R2", "Học sinh");
 	private final TeacherPaymentRepository teacherPaymentRepository;
+	private final ActivityLogService activityLogService;
+	private final CurrentUserService currentUserService;
 
 	public TeacherService(TeacherRepository teacherRepository, UserRepository userRepository,
 			AddressRepository addressRepository, StudentRepository studentRepository, PasswordEncoder passwordEncoder,
-			ImageService imageService, TeacherPaymentRepository teacherPaymentRepository) {
+			ImageService imageService, TeacherPaymentRepository teacherPaymentRepository,
+			ActivityLogService activityLogService, CurrentUserService currentUserService) {
 		this.teacherRepository = teacherRepository;
 		this.userRepository = userRepository;
 		this.addressRepository = addressRepository;
@@ -61,6 +67,8 @@ public class TeacherService {
 		this.passwordEncoder = passwordEncoder;
 		this.imageService = imageService;
 		this.teacherPaymentRepository = teacherPaymentRepository;
+		this.activityLogService = activityLogService;
+		this.currentUserService = currentUserService;
 	}
 
 	private Boolean parseStatus(String statusStr) {
@@ -139,7 +147,12 @@ public class TeacherService {
 			newTeacher.setAddressInfo(savedAddress);
 			newTeacher.setDateOfBirth(dto.getDateOfBirth());
 			newTeacher.setSpecialty(dto.getSpecialty());
-			teacherRepository.save(newTeacher);
+			Teacher savedTeacher = teacherRepository.save(newTeacher);
+
+			// LOG: Tạo giáo viên mới
+			User currentUser = currentUserService.getCurrentUser();
+			logTeacherAction(currentUser, ActivityActionType.CREATE, savedTeacher,
+					"đã tạo giáo viên mới: " + savedUser.getFullName());
 		}
 
 		return savedUser;
@@ -155,6 +168,9 @@ public class TeacherService {
 
 		User user = teacher.getUserInfo();
 		Address address = teacher.getAddressInfo();
+
+		String oldName = user.getFullName();
+		String oldSpecialty = teacher.getSpecialty();
 
 		user.setFullName(dto.getFullName());
 		user.setPhoneNumber(dto.getPhoneNumber());
@@ -182,45 +198,125 @@ public class TeacherService {
 			teacher.setAddressInfo(savedAddress);
 		}
 
-		return teacherRepository.save(teacher);
+		Teacher updatedTeacher = teacherRepository.save(teacher);
+
+		// LOG: Cập nhật giáo viên
+		User currentUser = currentUserService.getCurrentUser();
+		String description = "đã cập nhật thông tin giáo viên: " + user.getFullName();
+		if (!oldName.equals(user.getFullName())) {
+			description += " (tên cũ: " + oldName + ")";
+		}
+		if (!oldSpecialty.equals(teacher.getSpecialty()) && teacher.getSpecialty() != null) {
+			description += " (chuyên môn cũ: " + oldSpecialty + ")";
+		}
+
+		logTeacherAction(currentUser, ActivityActionType.UPDATE, updatedTeacher, description);
+
+		return updatedTeacher;
+	}
+
+	@Transactional
+	public void restoreTeacher(Long userId) {
+
+		Teacher teacher = teacherRepository.findByUserInfoId(userId)
+				.orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên!"));
+
+		User user = teacher.getUserInfo();
+
+		if (Boolean.TRUE.equals(user.getStatus())) {
+			throw new RuntimeException("Giáo viên đang hoạt động.");
+		}
+
+		user.setStatus(true);
+
+		userRepository.save(user);
 	}
 
 	@Transactional
 	public void deleteEmployee(Long userId) {
-		User user = userRepository.findById(userId)
-				.orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng!"));
+	    Teacher teacher = teacherRepository.findByUserInfoId(userId)
+	            .orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên!"));
 
-		Optional<Teacher> teacherOpt = teacherRepository.findByUserInfoId(userId);
-		if (teacherOpt.isPresent()) {
-			Teacher teacher = teacherOpt.get();
+	    User user = teacher.getUserInfo();
 
-			long unpaidCount = teacherPaymentRepository.countUnpaidByTeacher(teacher.getId());
-			if (unpaidCount > 0) {
-				throw new RuntimeException("Không thể xóa giáo viên này vì vẫn còn lương chưa thanh toán.");
-			}
+	    if (Boolean.FALSE.equals(user.getStatus())) {
+	        throw new RuntimeException("Giáo viên đã bị ngưng hoạt động trước đó.");
+	    }
 
-			if (teacher.getAddressInfo() != null) {
-				addressRepository.delete(teacher.getAddressInfo());
-			}
-			teacherRepository.delete(teacher);
-		}
+	    /*
+	     * long unpaidCount =
+	     * teacherPaymentRepository.countUnpaidByTeacher(teacher.getId());
+	     * 
+	     * if (unpaidCount > 0) { throw new
+	     * RuntimeException("Không thể ngưng hoạt động giáo viên vì vẫn còn lương chưa thanh toán."
+	     * ); }
+	     */
 
-		if (user.getImage() != null) {
-			imageService.deleteImage(user.getImage());
-		}
-		userRepository.delete(user);
+	    user.setStatus(false);
+	    userRepository.save(user);
+
+	    // LOG: Vô hiệu hóa giáo viên
+	    User currentUser = currentUserService.getCurrentUser();
+	    String description = "đã vô hiệu hóa giáo viên: " + user.getFullName() + " (ID: " + userId + ")";
+	    logTeacherAction(currentUser, ActivityActionType.UPDATE, teacher, description);
 	}
 
 	@Transactional
 	public void deleteMultipleTeachers(List<Long> userIds) {
-		if (userIds == null || userIds.isEmpty()) {
-			throw new RuntimeException("Danh sách ID không hợp lệ!");
-		}
-		for (Long id : userIds) {
-			this.deleteEmployee(id);
-		}
+	    if (userIds == null || userIds.isEmpty()) {
+	        throw new RuntimeException("Danh sách ID không hợp lệ!");
+	    }
+	    
+	    List<Long> successfullyDeleted = new ArrayList<>();
+	    List<String> failedDeletions = new ArrayList<>();
+	    
+	    for (Long id : userIds) {
+	        try {
+	            // Lấy thông tin teacher trước khi xóa để log
+	            Teacher teacher = teacherRepository.findByUserInfoId(id).orElse(null);
+	            if (teacher != null && Boolean.TRUE.equals(teacher.getUserInfo().getStatus())) {
+	                this.deleteEmployee(id);
+	                successfullyDeleted.add(id);
+	            } else if (teacher != null) {
+	                failedDeletions.add("ID " + id + " (đã ngưng hoạt động)");
+	            } else {
+	                failedDeletions.add("ID " + id + " (không tìm thấy)");
+	            }
+	        } catch (Exception e) {
+	            failedDeletions.add("ID " + id + " (lỗi: " + e.getMessage() + ")");
+	        }
+	    }
+	    
+	    // LOG: Xóa nhiều giáo viên
+	    User currentUser = currentUserService.getCurrentUser();
+	    String description = "đã vô hiệu hóa " + successfullyDeleted.size() + " giáo viên";
+	    if (!failedDeletions.isEmpty()) {
+	        description += " (thất bại: " + String.join(", ", failedDeletions) + ")";
+	    }
+	    
+	    String meta = """
+	            {
+	                "totalIds": %d,
+	                "successCount": %d,
+	                "failedCount": %d,
+	                "failedDetails": "%s"
+	            }
+	            """.formatted(
+	            userIds.size(),
+	            successfullyDeleted.size(),
+	            failedDeletions.size(),
+	            String.join("; ", failedDeletions)
+	    );
+	    
+	    activityLogService.log(
+	        currentUser,
+	        ActivityActionType.DELETE,
+	        ActivityTargetType.TEACHER_LIST,
+	        null,
+	        description,
+	        meta
+	    );
 	}
-
 	/**
 	 * exportTeachersToExcel
 	 */
@@ -274,6 +370,21 @@ public class TeacherService {
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		workbook.write(out);
 		workbook.close();
+
+		// LOG: Export danh sách giáo viên
+		User currentUser = currentUserService.getCurrentUser();
+		String description = "đã xuất danh sách giáo viên ra Excel với " + teachers.size() + " bản ghi";
+		String meta = """
+				{
+				    "action": "EXPORT_EXCEL",
+				    "totalRecords": %d,
+				    "filters": %s
+				}
+				""".formatted(teachers.size(), filters != null ? filters.toString() : "{}");
+
+		activityLogService.log(currentUser, ActivityActionType.VIEW, ActivityTargetType.TEACHER_LIST, null, description,
+				meta);
+
 		return out.toByteArray();
 	}
 
@@ -334,5 +445,33 @@ public class TeacherService {
 		Teacher teacher = teacherRepository.findByUserInfoId(userId)
 				.orElseThrow(() -> new RuntimeException("Không tìm thấy teacher với userId: " + userId));
 		return teacher.getId();
+	}
+
+	// =========================
+	// HELPER LOG METHODS
+	// =========================
+
+	/**
+	 * Ghi log cho hành động trên giáo viên
+	 * 
+	 * @param user        Người thực hiện (đã được lấy từ CurrentUserService)
+	 * @param actionType  Loại hành động
+	 * @param teacher     Đối tượng giáo viên
+	 * @param description Mô tả hành động
+	 */
+	private void logTeacherAction(User user, ActivityActionType actionType, Teacher teacher, String description) {
+		String meta = """
+				{
+				    "teacherId": %d,
+				    "fullName": "%s",
+				    "specialty": "%s",
+				    "email": "%s",
+				    "dateOfBirth": "%s"
+				}
+				""".formatted(teacher.getId(), teacher.getUserInfo().getFullName(),
+				teacher.getSpecialty() != null ? teacher.getSpecialty() : "null", teacher.getUserInfo().getEmail(),
+				teacher.getDateOfBirth() != null ? teacher.getDateOfBirth().toString() : "null");
+
+		activityLogService.log(user, actionType, ActivityTargetType.TEACHER_LIST, teacher.getId(), description, meta);
 	}
 }

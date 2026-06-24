@@ -15,12 +15,19 @@ import com.management.student_center.dto.leave.TeacherLeaveResponseDTO;
 import com.management.student_center.dto.teacher.TeacherAbsentResponse;
 import com.management.student_center.entity.LeaveAffectedSession;
 import com.management.student_center.entity.Session;
+import com.management.student_center.entity.SessionTeacher;
 import com.management.student_center.entity.Teacher;
+import com.management.student_center.entity.TeacherAttendance;
 import com.management.student_center.entity.TeacherLeave;
 import com.management.student_center.entity.TeacherSubject;
 import com.management.student_center.entity.User;
+import com.management.student_center.enums.AssignmentStatus;
+import com.management.student_center.enums.AssignmentType;
+import com.management.student_center.enums.SalaryType;
 import com.management.student_center.repository.LeaveAffectedSessionRepository;
 import com.management.student_center.repository.SessionRepository;
+import com.management.student_center.repository.SessionTeacherRepository;
+import com.management.student_center.repository.TeacherAttendanceRepository;
 import com.management.student_center.repository.TeacherLeaveRepository;
 import com.management.student_center.repository.TeacherRepository;
 import com.management.student_center.repository.TeacherSubjectRepository;
@@ -33,6 +40,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -49,17 +57,22 @@ public class TeacherLeaveService {
 	private final TeacherSubjectRepository teacherSubjectRepository;
 	private final SessionRepository sessionRepository;
 	private final LeaveAffectedSessionRepository affectedSessionRepository;
+	private final SessionTeacherRepository sessionTeacherRepository;
+	private final TeacherAttendanceRepository teacherAttendanceRepository;
 
 	public TeacherLeaveService(TeacherLeaveRepository leaveRepository, TeacherRepository teacherRepository,
 			UserRepository userRepository, TeacherSubjectRepository teacherSubjectRepository,
 			SessionRepository sessionRepository, LeaveAffectedSessionRepository affectedSessionRepository,
-			TeacherLeaveRepository teacherLeaveRepository) {
+			SessionTeacherRepository sessionTeacherRepository,
+			TeacherAttendanceRepository teacherAttendanceRepository) {
 		this.leaveRepository = leaveRepository;
 		this.teacherRepository = teacherRepository;
 		this.userRepository = userRepository;
 		this.teacherSubjectRepository = teacherSubjectRepository;
 		this.sessionRepository = sessionRepository;
 		this.affectedSessionRepository = affectedSessionRepository;
+		this.sessionTeacherRepository = sessionTeacherRepository;
+		this.teacherAttendanceRepository = teacherAttendanceRepository;
 	}
 
 	// =========================================================
@@ -161,7 +174,16 @@ public class TeacherLeaveService {
 			leave.setApprover(approver);
 			leave.setApprovedAt(LocalDateTime.now());
 			TeacherLeave updated = leaveRepository.save(leave);
-			cleanupAffectedSessions(leave.getId());
+			/*
+			 * List<LeaveAffectedSession> sessions =
+			 * affectedSessionRepository.findByLeaveId(leave.getId());
+			 * 
+			 * /* for (LeaveAffectedSession s : sessions) { sessionTeacherRepository
+			 * .deleteAll(sessionTeacherRepository.findBySessionInfoId(s.getSession().getId(
+			 * ))); }
+			 * 
+			 * cleanupAffectedSessions(leave.getId());
+			 */
 			return mapToResponseDTO(updated);
 		}
 
@@ -194,21 +216,30 @@ public class TeacherLeaveService {
 
 	@Transactional
 	public void processLeaveApproval(TeacherLeave leave, List<PreviewReplacementSelectionDTO> replacements) {
-		List<TeacherSubject> teacherSubjects = teacherSubjectRepository.findByTeacherId(leave.getTeacher().getId());
-		List<Integer> subjectIds = teacherSubjects.stream().map(ts -> ts.getSubject().getId().intValue())
-				.collect(Collectors.toList());
-		if (subjectIds.isEmpty()) {
-			return;
+		List<SessionTeacher> teacherSessions = sessionTeacherRepository.findTeacherSessions(leave.getTeacher().getId(),
+				leave.getStartDate(), leave.getEndDate());
+
+		// ✅ LOG để debug
+		System.out.println("🔍 [BE] processLeaveApproval - leaveId: " + leave.getId());
+		System.out.println("🔍 [BE] replacements size: " + (replacements != null ? replacements.size() : 0));
+		if (replacements != null) {
+			for (PreviewReplacementSelectionDTO r : replacements) {
+				System.out.println("🔍 [BE] sessionId: " + r.getSessionId() + ", teacherId: "
+						+ r.getReplacementTeacherId() + ", salary: " + r.getSalary());
+			}
 		}
-		List<Session> sessions = sessionRepository.findSessionsForLeave(subjectIds, leave.getStartDate(),
-				leave.getEndDate());
-		for (Session session : sessions) {
+
+		for (SessionTeacher st : teacherSessions) {
+			Session session = st.getSessionInfo();
+
 			if (session.getSessionDate().isBefore(LocalDate.now())) {
 				continue;
 			}
+
 			if (!isSessionAffected(leave, session)) {
 				continue;
 			}
+
 			LeaveAffectedSession las = new LeaveAffectedSession();
 			las.setLeave(leave);
 			las.setSession(session);
@@ -217,7 +248,12 @@ public class TeacherLeaveService {
 			if (leave.getAffectType() == TeacherLeave.AffectType.CANCEL) {
 				las.setStatus(LeaveAffectedSession.Status.SKIPPED);
 				las.setProcessedAt(LocalDateTime.now());
-				session.setStatus("cancelled");
+				session.setStatus("canceled");
+				List<SessionTeacher> sessionTeachers = sessionTeacherRepository.findBySessionInfoId(session.getId());
+				sessionTeachers.forEach(sessionTeacher -> {
+					sessionTeacher.setAssignmentStatus(AssignmentStatus.CANCELLED);
+				});
+				sessionTeacherRepository.saveAll(sessionTeachers);
 				sessionRepository.save(session);
 			} else {
 				Long replacementTeacherId = findReplacementTeacherId(session.getId(), replacements);
@@ -225,6 +261,16 @@ public class TeacherLeaveService {
 					las.setStatus(LeaveAffectedSession.Status.ASSIGNED);
 					las.setReplacementTeacherId(replacementTeacherId.intValue());
 					las.setAssignedAt(LocalDateTime.now());
+
+					// ✅ THÊM: Lấy và set salary
+					BigDecimal salary = findReplacementSalary(session.getId(), replacements);
+					if (salary != null) {
+						las.setReplacementSalary(salary);
+						System.out.println(
+								"💰 [BE] Set replacementSalary: " + salary + " for session " + session.getId());
+					} else {
+						System.out.println("⚠️ [BE] No salary found for session " + session.getId());
+					}
 				} else {
 					las.setStatus(LeaveAffectedSession.Status.PENDING);
 				}
@@ -237,6 +283,15 @@ public class TeacherLeaveService {
 			leave.setProcessed(true);
 			leaveRepository.save(leave);
 		}
+	}
+
+	// ✅ THÊM phương thức tìm salary
+	private BigDecimal findReplacementSalary(Long sessionId, List<PreviewReplacementSelectionDTO> replacements) {
+		if (replacements == null || replacements.isEmpty()) {
+			return null;
+		}
+		return replacements.stream().filter(r -> r.getSessionId().equals(sessionId))
+				.map(PreviewReplacementSelectionDTO::getSalary).findFirst().orElse(null);
 	}
 
 	private Long findReplacementTeacherId(Long sessionId, List<PreviewReplacementSelectionDTO> replacements) {
@@ -281,7 +336,10 @@ public class TeacherLeaveService {
 		}
 		las.setReplacementTeacherId(dto.getReplacementTeacherId());
 		las.setAdminNote(dto.getAdminNote());
+		las.setReplacementSalary(dto.getReplacementSalary());
+
 		las.setReplacementResponse(LeaveAffectedSession.ReplacementResponse.PENDING);
+
 		las.setStatus(LeaveAffectedSession.Status.ASSIGNED);
 		las.setAssignedAt(LocalDateTime.now());
 
@@ -317,11 +375,70 @@ public class TeacherLeaveService {
 		// ==========================================
 		// ACCEPT
 		// ==========================================
+		if ("canceled".equalsIgnoreCase(las.getSession().getStatus())) {
+
+			throw new RuntimeException("Session đã bị hủy");
+		}
 		if (dto.getResponse() == LeaveAffectedSession.ReplacementResponse.ACCEPTED) {
 			las.setReplacementResponse(LeaveAffectedSession.ReplacementResponse.ACCEPTED);
 			las.setStatus(LeaveAffectedSession.Status.RESOLVED); // ✅ ACCEPT → RESOLVED
 			las.setProcessedAt(LocalDateTime.now());
 			las.setReplacementResponseAt(LocalDateTime.now());
+			Session session = las.getSession();
+
+			boolean hasTeachingConflict = sessionRepository.existsTeacherSessionOverlap(
+					las.getReplacementTeacherId().longValue(), session.getSessionDate(), session.getStartTime(),
+					session.getEndTime());
+
+			if (hasTeachingConflict) {
+				throw new RuntimeException("Lịch giáo viên đã thay đổi, hiện đang bị trùng lịch");
+			}
+
+			boolean hasLeaveConflict = leaveRepository.existsTeacherLeaveOverlap(
+					las.getReplacementTeacherId().longValue(), session.getSessionDate(), session.getStartTime(),
+					session.getEndTime());
+
+			if (hasLeaveConflict) {
+				throw new RuntimeException("Giáo viên hiện đang có đơn nghỉ");
+			}
+			SessionTeacher replacement = new SessionTeacher();
+
+			replacement.setSessionInfo(las.getSession());
+
+			Teacher replacementTeacher = teacherRepository.findById(las.getReplacementTeacherId().longValue())
+					.orElseThrow();
+
+			boolean exists = sessionTeacherRepository.existsBySessionInfoIdAndTeacherInfoIdAndAssignmentType(
+					las.getSession().getId(), replacementTeacher.getId(), AssignmentType.REPLACEMENT);
+
+			if (!exists) {
+
+				List<SessionTeacher> oldTeachers = sessionTeacherRepository.findBySessionInfoId(session.getId());
+
+				oldTeachers.forEach(st -> {
+					st.setAssignmentStatus(AssignmentStatus.CANCELLED);
+				});
+
+				BigDecimal replacementSalary = las.getReplacementSalary();
+				sessionTeacherRepository.saveAll(oldTeachers);
+				replacement.setTeacherInfo(replacementTeacher);
+
+				replacement.setAssignmentType(AssignmentType.REPLACEMENT);
+
+				replacement.setAssignmentStatus(AssignmentStatus.ASSIGNED);
+
+				replacement.setSalaryType(SalaryType.PER_SESSION);
+
+				replacement.setSalaryRate(replacementSalary);
+
+				replacement.setBaseAmount(replacementSalary);
+
+				replacement.setFinalAmount(replacementSalary);
+
+				sessionTeacherRepository.save(replacement);
+
+				createReplacementAttendance(las, replacementTeacher);
+			}
 			affectedSessionRepository.save(las);
 			checkLeaveProcessed(las.getLeave());
 			return;
@@ -332,13 +449,85 @@ public class TeacherLeaveService {
 		if (dto.getResponse() == LeaveAffectedSession.ReplacementResponse.REJECTED) {
 			las.setReplacementResponse(LeaveAffectedSession.ReplacementResponse.REJECTED);
 			las.setStatus(LeaveAffectedSession.Status.DECLINED);
+			Integer removedTeacherId = las.getReplacementTeacherId();
 			las.setReplacementTeacherId(null);
 			las.setReplacementResponseAt(LocalDateTime.now());
 			if (dto.getReason() != null && !dto.getReason().isBlank()) {
 				las.setDeclineReason(dto.getReason());
 			}
+
+			List<SessionTeacher> replacements = sessionTeacherRepository.findBySessionInfoId(las.getSession().getId())
+					.stream().filter(st -> st.getAssignmentType() == AssignmentType.REPLACEMENT)
+					.filter(st -> st.getTeacherInfo().getId().equals(removedTeacherId.longValue())).toList();
+
+			sessionTeacherRepository.deleteAll(replacements);
+			removeReplacementAttendance(las, removedTeacherId);
 			affectedSessionRepository.save(las);
 		}
+	}
+
+	private void removeReplacementAttendance(LeaveAffectedSession las, Integer removedTeacherId) {
+
+		Session session = las.getSession();
+
+		Teacher replacementTeacher = teacherRepository.findById(removedTeacherId.longValue()).orElse(null);
+
+		if (replacementTeacher != null) {
+
+			teacherAttendanceRepository.findBySessionAndTeacher(session, replacementTeacher)
+					.ifPresent(teacherAttendanceRepository::delete);
+		}
+	}
+
+	private void createReplacementAttendance(LeaveAffectedSession las, Teacher replacementTeacher) {
+
+		Session session = las.getSession();
+
+		Teacher originalTeacher = teacherRepository.findById(las.getOriginalTeacherId().longValue()).orElseThrow();
+
+		// =========================
+		// Attendance teacher nghỉ
+		// =========================
+
+		TeacherAttendance originalAttendance = teacherAttendanceRepository
+				.findBySessionAndTeacher(session, originalTeacher).orElse(null);
+
+		if (originalAttendance == null) {
+
+			originalAttendance = new TeacherAttendance();
+
+			originalAttendance.setSession(session);
+
+			originalAttendance.setTeacher(originalTeacher);
+		}
+
+		originalAttendance.setStatus("absent");
+
+		originalAttendance.setNote("Nghỉ phép - có giáo viên dạy thay");
+
+		teacherAttendanceRepository.save(originalAttendance);
+
+		// =========================
+		// Attendance teacher thay
+		// =========================
+
+		TeacherAttendance replacementAttendance = teacherAttendanceRepository
+				.findBySessionAndTeacher(session, replacementTeacher).orElse(null);
+
+		if (replacementAttendance == null) {
+
+			replacementAttendance = new TeacherAttendance();
+
+			replacementAttendance.setSession(session);
+
+			replacementAttendance.setTeacher(replacementTeacher);
+		}
+
+		replacementAttendance.setStatus("present");
+
+		replacementAttendance.setNote("Giáo viên dạy thay");
+
+		teacherAttendanceRepository.save(replacementAttendance);
 	}
 
 	// =========================================================
@@ -356,6 +545,16 @@ public class TeacherLeaveService {
 		if (leave.getStatus() != TeacherLeave.LeaveStatus.PENDING) {
 			throw new RuntimeException("Chỉ được hủy đơn PENDING");
 		}
+
+		List<LeaveAffectedSession> affected = affectedSessionRepository.findByLeaveId(leaveId);
+
+		/*
+		 * for (LeaveAffectedSession las : affected) {
+		 * sessionTeacherRepository.deleteAll(sessionTeacherRepository.
+		 * findBySessionInfoId(las.getSession().getId())); }
+		 */
+
+		affectedSessionRepository.deleteByLeaveId(leaveId);
 		leave.setStatus(TeacherLeave.LeaveStatus.CANCELLED);
 		leaveRepository.save(leave);
 	}
@@ -379,6 +578,9 @@ public class TeacherLeaveService {
 				dto.setReplacementTeacherId(las.getReplacementTeacherId().longValue());
 				teacherRepository.findById(las.getReplacementTeacherId().longValue())
 						.ifPresent(teacher -> dto.setReplacementTeacherName(teacher.getUserInfo().getFullName()));
+			}
+			if (las.getReplacementSalary() != null) {
+				dto.setReplacementSalary(las.getReplacementSalary());
 			}
 			dto.setAssignedAt(las.getAssignedAt());
 			dto.setRespondedAt(las.getReplacementResponseAt());
@@ -421,10 +623,21 @@ public class TeacherLeaveService {
 	// =========================================================
 
 	private void checkLeaveProcessed(TeacherLeave leave) {
-		boolean hasPending = affectedSessionRepository.existsByLeaveIdAndStatus(leave.getId(),
-				LeaveAffectedSession.Status.PENDING);
-		if (!hasPending) {
+
+		List<LeaveAffectedSession> sessions = affectedSessionRepository.findByLeaveId(leave.getId());
+
+		boolean allResolved = sessions.stream().allMatch(s ->
+
+		s.getStatus() == LeaveAffectedSession.Status.RESOLVED
+
+				||
+
+				s.getStatus() == LeaveAffectedSession.Status.SKIPPED);
+
+		if (allResolved) {
+
 			leave.setProcessed(true);
+
 			leaveRepository.save(leave);
 		}
 	}
@@ -678,17 +891,39 @@ public class TeacherLeaveService {
 
 	@Transactional
 	public void cancelAffectedSession(Long affectedSessionId) {
+
 		LeaveAffectedSession las = affectedSessionRepository.findById(affectedSessionId)
 				.orElseThrow(() -> new RuntimeException("Không tìm thấy session bị ảnh hưởng"));
+
 		if (las.getStatus() == LeaveAffectedSession.Status.RESOLVED) {
 			throw new RuntimeException("Session đã có giáo viên nhận dạy thay");
 		}
+
 		Session session = las.getSession();
-		session.setStatus("cancelled");
+
+		// =========================
+		// Hủy các assignment teacher
+		// =========================
+		List<SessionTeacher> teachers = sessionTeacherRepository.findBySessionInfoId(session.getId());
+
+		teachers.forEach(st -> st.setAssignmentStatus(AssignmentStatus.CANCELLED));
+
+		sessionTeacherRepository.saveAll(teachers);
+
+		// =========================
+		// Hủy session
+		// =========================
+		session.setStatus("canceled");
+
+		// =========================
+		// Update affected session
+		// =========================
 		las.setStatus(LeaveAffectedSession.Status.SKIPPED);
 		las.setProcessedAt(LocalDateTime.now());
+
 		affectedSessionRepository.save(las);
 		sessionRepository.save(session);
+
 		checkLeaveProcessed(las.getLeave());
 	}
 

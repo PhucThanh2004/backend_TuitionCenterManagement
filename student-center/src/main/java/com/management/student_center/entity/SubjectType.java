@@ -3,8 +3,10 @@ package com.management.student_center.entity;
 import jakarta.persistence.*;
 import java.util.List;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Entity
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Table(name = "subject_types",
        uniqueConstraints = @UniqueConstraint(columnNames = {"name", "academic_level_id"}))
 public class SubjectType {

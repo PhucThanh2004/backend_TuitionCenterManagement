@@ -9,9 +9,9 @@ public class PayrollListItemDTO {
 
 	private Integer paymentId;
 
-    private Long teacherId;
+	private Long teacherId;
 
-    public Long getTeacherId() {
+	public Long getTeacherId() {
 		return teacherId;
 	}
 
@@ -21,17 +21,19 @@ public class PayrollListItemDTO {
 
 	private String teacherName;
 
-    private Integer month;
+	private Integer month;
 
-    private Integer year;
+	private Integer year;
 
-    private BigDecimal amount;
+	private BigDecimal amount;
 
-    private Integer totalSessions;
+	private Integer totalSessions;
 
-    private TeacherPaymentStatus status;
+	private TeacherPaymentStatus status;
 
-    private LocalDate paymentDate;
+	private LocalDate paymentDate;
+
+	private Integer revisionNo;
 
 	public Integer getPaymentId() {
 		return paymentId;
@@ -40,7 +42,6 @@ public class PayrollListItemDTO {
 	public void setPaymentId(Integer paymentId) {
 		this.paymentId = paymentId;
 	}
-
 
 	public String getTeacherName() {
 		return teacherName;
@@ -97,4 +98,13 @@ public class PayrollListItemDTO {
 	public void setPaymentDate(LocalDate paymentDate) {
 		this.paymentDate = paymentDate;
 	}
+
+	public Integer getRevisionNo() {
+		return revisionNo;
+	}
+
+	public void setRevisionNo(Integer revisionNo) {
+		this.revisionNo = revisionNo;
+	}
+
 }

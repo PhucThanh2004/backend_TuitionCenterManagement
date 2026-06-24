@@ -7,26 +7,29 @@ import java.util.List;
 public class SessionDetailDTO {
     
     private Long id;
-    private String status; // scheduled | ongoing | expired | completed | canceled
-    private String className; // tên lớp học (có thể lấy từ SubjectSchedule hoặc để null)
+    private String status;
+    private String className;
     private String subjectName;
-    private String subjectSlug; // slug từ SubjectType
+    private String subjectSlug;
     private LocalDate sessionDate;
     private LocalTime startTime;
     private LocalTime endTime;
-    private Long totalMinutes; // tổng thời gian (phút)
+    private Long totalMinutes;
     
-    // Thông tin giáo viên
     private TeacherInfo teacher;
-    
-    // Thông tin phòng học
     private RoomInfo room;
-    
-    // Danh sách học sinh kèm điểm danh
     private List<StudentAttendanceInfo> studentAttendances;
-    
-    // Điểm danh giáo viên
     private TeacherAttendanceInfo teacherAttendance;
+    
+    // ========== THÊM CÁC FIELD CHO NỘI DUNG BUỔI HỌC ==========
+    private Boolean isFollowingPlan;           // true: dạy đúng kế hoạch, false: dạy lệch
+    private String displayTopic;               // Chủ đề (kế hoạch hoặc thực tế)
+    private String displayContent;             // Nội dung (kế hoạch hoặc thực tế)
+    private String displayHomework;            // Bài tập (kế hoạch hoặc thực tế)
+    private String plannedTopic;               // Chủ đề theo kế hoạch (để so sánh)
+    private Long plannedSessionDetailId;       // ID của kế hoạch (nếu có)
+    private String deviationReason;            // Lý do thay đổi (nếu dạy lệch)
+    private String noteForNextSession;         // Ghi chú cho buổi sau
     
     // Constructors
     public SessionDetailDTO() {}
@@ -51,136 +54,72 @@ public class SessionDetailDTO {
         this.teacherAttendance = teacherAttendance;
     }
     
-    // Inner class cho thông tin giáo viên
-    public static class TeacherInfo {
-        private Long id;
-        private String fullName;
-        private String specialty;
-        private String email;
-        private String phoneNumber;
-        private String image;
-        
-        public TeacherInfo() {}
-        
-        public TeacherInfo(Long id, String fullName, String specialty, String email, String phoneNumber, String image) {
-            this.id = id;
-            this.fullName = fullName;
-            this.specialty = specialty;
-            this.email = email;
-            this.phoneNumber = phoneNumber;
-            this.image = image;
-        }
-        
-        // Getters & Setters
-        public Long getId() { return id; }
-        public void setId(Long id) { this.id = id; }
-        public String getFullName() { return fullName; }
-        public void setFullName(String fullName) { this.fullName = fullName; }
-        public String getSpecialty() { return specialty; }
-        public void setSpecialty(String specialty) { this.specialty = specialty; }
-        public String getEmail() { return email; }
-        public void setEmail(String email) { this.email = email; }
-        public String getPhoneNumber() { return phoneNumber; }
-        public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
-
-		public String getImage() {
-			return image;
-		}
-
-		public void setImage(String image) {
-			this.image = image;
-		}
-        
+    // ========== GETTERS & SETTERS CHO CÁC FIELD MỚI ==========
+    public Boolean getIsFollowingPlan() {
+        return isFollowingPlan;
     }
     
-    // Inner class cho thông tin phòng học
-    public static class RoomInfo {
-        private Long id;
-        private String name;
-        private Integer seatCapacity;
-        
-        public RoomInfo() {}
-        
-        public RoomInfo(Long id, String name, Integer seatCapacity) {
-            this.id = id;
-            this.name = name;
-            this.seatCapacity = seatCapacity;
-        }
-        
-        // Getters & Setters
-        public Long getId() { return id; }
-        public void setId(Long id) { this.id = id; }
-        public String getName() { return name; }
-        public void setName(String name) { this.name = name; }
-        public Integer getSeatCapacity() { return seatCapacity; }
-        public void setSeatCapacity(Integer seatCapacity) { this.seatCapacity = seatCapacity; }
+    public void setIsFollowingPlan(Boolean isFollowingPlan) {
+        this.isFollowingPlan = isFollowingPlan;
     }
     
-    // Inner class cho thông tin học sinh kèm điểm danh
-    public static class StudentAttendanceInfo {
-        private Long studentId;
-        private String fullName;
-        private String email;
-        private String phoneNumber;
-        private String attendanceStatus; // present | absent | late
-        private String attendanceNote;
-        
-        public StudentAttendanceInfo() {}
-        
-        public StudentAttendanceInfo(Long studentId, String fullName, String email, 
-                                    String phoneNumber, String attendanceStatus, 
-                                    String attendanceNote) {
-            this.studentId = studentId;
-            this.fullName = fullName;
-            this.email = email;
-            this.phoneNumber = phoneNumber;
-            this.attendanceStatus = attendanceStatus;
-            this.attendanceNote = attendanceNote;
-        }
-        
-        // Getters & Setters
-        public Long getStudentId() { return studentId; }
-        public void setStudentId(Long studentId) { this.studentId = studentId; }
-        public String getFullName() { return fullName; }
-        public void setFullName(String fullName) { this.fullName = fullName; }
-        public String getEmail() { return email; }
-        public void setEmail(String email) { this.email = email; }
-        public String getPhoneNumber() { return phoneNumber; }
-        public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
-        public String getAttendanceStatus() { return attendanceStatus; }
-        public void setAttendanceStatus(String attendanceStatus) { this.attendanceStatus = attendanceStatus; }
-        public String getAttendanceNote() { return attendanceNote; }
-        public void setAttendanceNote(String attendanceNote) { this.attendanceNote = attendanceNote; }
+    public String getDisplayTopic() {
+        return displayTopic;
     }
     
-    // Inner class cho điểm danh giáo viên
-    public static class TeacherAttendanceInfo {
-        private Long teacherId;
-        private String teacherName;
-        private String status; // present | absent | late
-        private String note;
-        
-        public TeacherAttendanceInfo() {}
-        
-        public TeacherAttendanceInfo(Long teacherId, String teacherName, String status, String note) {
-            this.teacherId = teacherId;
-            this.teacherName = teacherName;
-            this.status = status;
-            this.note = note;
-        }
-        
-        // Getters & Setters
-        public Long getTeacherId() { return teacherId; }
-        public void setTeacherId(Long teacherId) { this.teacherId = teacherId; }
-        public String getTeacherName() { return teacherName; }
-        public void setTeacherName(String teacherName) { this.teacherName = teacherName; }
-        public String getStatus() { return status; }
-        public void setStatus(String status) { this.status = status; }
-        public String getNote() { return note; }
-        public void setNote(String note) { this.note = note; }
+    public void setDisplayTopic(String displayTopic) {
+        this.displayTopic = displayTopic;
     }
     
-    // Getters & Setters for main DTO
+    public String getDisplayContent() {
+        return displayContent;
+    }
+    
+    public void setDisplayContent(String displayContent) {
+        this.displayContent = displayContent;
+    }
+    
+    public String getDisplayHomework() {
+        return displayHomework;
+    }
+    
+    public void setDisplayHomework(String displayHomework) {
+        this.displayHomework = displayHomework;
+    }
+    
+    public String getPlannedTopic() {
+        return plannedTopic;
+    }
+    
+    public void setPlannedTopic(String plannedTopic) {
+        this.plannedTopic = plannedTopic;
+    }
+    
+    public Long getPlannedSessionDetailId() {
+        return plannedSessionDetailId;
+    }
+    
+    public void setPlannedSessionDetailId(Long plannedSessionDetailId) {
+        this.plannedSessionDetailId = plannedSessionDetailId;
+    }
+    
+    public String getDeviationReason() {
+        return deviationReason;
+    }
+    
+    public void setDeviationReason(String deviationReason) {
+        this.deviationReason = deviationReason;
+    }
+    
+    public String getNoteForNextSession() {
+        return noteForNextSession;
+    }
+    
+    public void setNoteForNextSession(String noteForNextSession) {
+        this.noteForNextSession = noteForNextSession;
+    }
+    
+    // ========== GETTERS & SETTERS CHO CÁC FIELD CŨ ==========
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getStatus() { return status; }
@@ -210,5 +149,124 @@ public class SessionDetailDTO {
     public TeacherAttendanceInfo getTeacherAttendance() { return teacherAttendance; }
     public void setTeacherAttendance(TeacherAttendanceInfo teacherAttendance) { 
         this.teacherAttendance = teacherAttendance; 
+    }
+    
+    // ========== INNER CLASSES (giữ nguyên) ==========
+    public static class TeacherInfo {
+        // ... giữ nguyên code cũ
+        private Long id;
+        private String fullName;
+        private String specialty;
+        private String email;
+        private String phoneNumber;
+        private String image;
+        
+        public TeacherInfo() {}
+        
+        public TeacherInfo(Long id, String fullName, String specialty, String email, String phoneNumber, String image) {
+            this.id = id;
+            this.fullName = fullName;
+            this.specialty = specialty;
+            this.email = email;
+            this.phoneNumber = phoneNumber;
+            this.image = image;
+        }
+        
+        public Long getId() { return id; }
+        public void setId(Long id) { this.id = id; }
+        public String getFullName() { return fullName; }
+        public void setFullName(String fullName) { this.fullName = fullName; }
+        public String getSpecialty() { return specialty; }
+        public void setSpecialty(String specialty) { this.specialty = specialty; }
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+        public String getPhoneNumber() { return phoneNumber; }
+        public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+        public String getImage() { return image; }
+        public void setImage(String image) { this.image = image; }
+    }
+    
+    public static class RoomInfo {
+        // ... giữ nguyên code cũ
+        private Long id;
+        private String name;
+        private Integer seatCapacity;
+        
+        public RoomInfo() {}
+        
+        public RoomInfo(Long id, String name, Integer seatCapacity) {
+            this.id = id;
+            this.name = name;
+            this.seatCapacity = seatCapacity;
+        }
+        
+        public Long getId() { return id; }
+        public void setId(Long id) { this.id = id; }
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+        public Integer getSeatCapacity() { return seatCapacity; }
+        public void setSeatCapacity(Integer seatCapacity) { this.seatCapacity = seatCapacity; }
+    }
+    
+    public static class StudentAttendanceInfo {
+        // ... giữ nguyên code cũ
+        private Long studentId;
+        private String fullName;
+        private String email;
+        private String phoneNumber;
+        private String attendanceStatus;
+        private String attendanceNote;
+        
+        public StudentAttendanceInfo() {}
+        
+        public StudentAttendanceInfo(Long studentId, String fullName, String email, 
+                                    String phoneNumber, String attendanceStatus, 
+                                    String attendanceNote) {
+            this.studentId = studentId;
+            this.fullName = fullName;
+            this.email = email;
+            this.phoneNumber = phoneNumber;
+            this.attendanceStatus = attendanceStatus;
+            this.attendanceNote = attendanceNote;
+        }
+        
+        public Long getStudentId() { return studentId; }
+        public void setStudentId(Long studentId) { this.studentId = studentId; }
+        public String getFullName() { return fullName; }
+        public void setFullName(String fullName) { this.fullName = fullName; }
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+        public String getPhoneNumber() { return phoneNumber; }
+        public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+        public String getAttendanceStatus() { return attendanceStatus; }
+        public void setAttendanceStatus(String attendanceStatus) { this.attendanceStatus = attendanceStatus; }
+        public String getAttendanceNote() { return attendanceNote; }
+        public void setAttendanceNote(String attendanceNote) { this.attendanceNote = attendanceNote; }
+    }
+    
+    public static class TeacherAttendanceInfo {
+        // ... giữ nguyên code cũ
+        private Long teacherId;
+        private String teacherName;
+        private String status;
+        private String note;
+        
+        public TeacherAttendanceInfo() {}
+        
+        public TeacherAttendanceInfo(Long teacherId, String teacherName, String status, String note) {
+            this.teacherId = teacherId;
+            this.teacherName = teacherName;
+            this.status = status;
+            this.note = note;
+        }
+        
+        public Long getTeacherId() { return teacherId; }
+        public void setTeacherId(Long teacherId) { this.teacherId = teacherId; }
+        public String getTeacherName() { return teacherName; }
+        public void setTeacherName(String teacherName) { this.teacherName = teacherName; }
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
+        public String getNote() { return note; }
+        public void setNote(String note) { this.note = note; }
     }
 }

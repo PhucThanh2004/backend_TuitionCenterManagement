@@ -9,6 +9,7 @@ import com.management.student_center.entity.*;
 import com.management.student_center.repository.*;
 import com.management.student_center.enums.ActivityActionType;
 import com.management.student_center.enums.ActivityTargetType;
+import com.management.student_center.enums.AssignmentStatus;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -29,7 +30,7 @@ public class AttendanceService {
     private final StudentRepository studentRepository;
     private final ActivityLogService activityLogService;
     private final CurrentUserService currentUserService;
-    
+    private final SessionTeacherRepository sessionTeacherRepository;
     
     @Autowired
     private SubjectRepository subjectRepository;
@@ -40,7 +41,9 @@ public class AttendanceService {
             AttendanceStudentRepository attendanceStudentRepository,
             StudentRepository studentRepository,
             ActivityLogService activityLogService,
-            CurrentUserService currentUserService
+            CurrentUserService currentUserService,
+            SessionTeacherRepository sessionTeacherRepository
+
     ) {
         this.sessionRepository = sessionRepository;
         this.studentSubjectRepository = studentSubjectRepository;
@@ -48,6 +51,7 @@ public class AttendanceService {
         this.studentRepository = studentRepository;
         this.activityLogService = activityLogService;
         this.currentUserService = currentUserService;
+        this.sessionTeacherRepository = sessionTeacherRepository;
     }
     
     public List<AttendanceStudentDTO> getAbsentOrLateStudentsInDateRange(LocalDate startDate, LocalDate endDate) {
@@ -306,10 +310,35 @@ public class AttendanceService {
                 .anyMatch(a -> "present".equals(a.getStatus()) || "late".equals(a.getStatus()));
         
         if (hasPresentOrLate) {
-            session.setStatus("completed");
-            sessionRepository.save(session);
-        }
+
+			session.setStatus("completed");
+
+			sessionRepository.save(session);
+
+			completeTeacherAssignments(session);
+		}
     }
+    
+    private void completeTeacherAssignments(Session session) {
+
+		List<SessionTeacher> teachers = sessionTeacherRepository.findBySessionInfoId(session.getId());
+
+		boolean changed = false;
+
+		for (SessionTeacher st : teachers) {
+
+			if (st.getAssignmentStatus() == AssignmentStatus.ASSIGNED) {
+
+				st.setAssignmentStatus(AssignmentStatus.COMPLETED);
+
+				changed = true;
+			}
+		}
+
+		if (changed) {
+			sessionTeacherRepository.saveAll(teachers);
+		}
+	}
 
     // cập nhật ghi chú
     @Transactional

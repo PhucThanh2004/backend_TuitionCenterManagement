@@ -45,22 +45,27 @@ public class StudentSubjectService {
 	        this.currentUserService = currentUserService;
 	    }
 
-    @Transactional(readOnly = true)
-    public List<StudentDTO> getStudentsBySubjectId(Long subjectId) {
-        List<StudentSubject> ssList = studentSubjectRepository.findActiveBySubjectId(subjectId);
+	    @Transactional(readOnly = true)
+	    public List<StudentDTO> getStudentsBySubjectId(Long subjectId) {
+	        List<StudentSubject> ssList = studentSubjectRepository.findActiveBySubjectId(subjectId);
 
-        return ssList.stream().map(ss -> {
-            Student s = ss.getStudent();
-            return new StudentDTO(
-                    s.getId(),
-                    s.getUserInfo() != null ? s.getUserInfo().getFullName() : "Chưa có tên",
-                    s.getUserInfo() != null ? s.getUserInfo().getGender() : null,
-                    s.getDateOfBirth(),
-                    s.getSchoolName(),
-                    s.getGrade()
-            );
-        }).collect(Collectors.toList());
-    }
+	        return ssList.stream().map(ss -> {
+	            Student s = ss.getStudent();
+	            User userInfo = s.getUserInfo();
+	            
+	            Long userId = userInfo != null ? userInfo.getId() : null;
+	            
+	            return new StudentDTO(
+	                s.getId(),
+	                userId, 
+	                userInfo != null ? userInfo.getFullName() : "Chưa có tên",
+	                userInfo != null ? userInfo.getGender() : null,
+	                s.getDateOfBirth(),
+	                s.getSchoolName(),
+	                s.getGrade()
+	            );
+	        }).collect(Collectors.toList());
+	    }
 
     /*@Transactional
     public StudentSubject addStudentToSubject(Long studentId, Long subjectId) {
@@ -118,6 +123,10 @@ public class StudentSubjectService {
                 ss.setSubject(subject);
                 ss.setEnrollmentDate(java.time.LocalDate.now());
                 ss.setDeletedAt(null);
+                ss.setFeeAmountSnapshot(subject.getPrice());
+                ss.setBillingTypeSnapshot(subject.getBillingType());
+                ss.setPaymentPlanTypeSnapshot(subject.getPaymentPlanType());
+                ss.setInstallmentCountSnapshot(subject.getInstallmentCount());
                 savedRecord = studentSubjectRepository.save(ss);
                 
                 // LOG ACTIVITY: THÊM LẠI HỌC SINH (SAU KHI ĐÃ XÓA)
@@ -140,6 +149,10 @@ public class StudentSubjectService {
             ss.setSubject(subject);
             ss.setEnrollmentDate(java.time.LocalDate.now());
             ss.setDeletedAt(null);
+            ss.setFeeAmountSnapshot(subject.getPrice());
+            ss.setBillingTypeSnapshot(subject.getBillingType());
+            ss.setPaymentPlanTypeSnapshot(subject.getPaymentPlanType());
+            ss.setInstallmentCountSnapshot(subject.getInstallmentCount());
             savedRecord = studentSubjectRepository.save(ss);
             
             // LOG ACTIVITY: THÊM HỌC SINH MỚI

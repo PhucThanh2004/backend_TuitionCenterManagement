@@ -8,5 +8,6 @@ public enum ActivityActionType {
     REJECT,
     LOGIN,
     LOGOUT,
-    CHECKIN
+    CHECKIN, 
+    VIEW
 }

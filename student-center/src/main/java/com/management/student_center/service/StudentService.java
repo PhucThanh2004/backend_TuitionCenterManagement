@@ -4,6 +4,8 @@ import com.management.student_center.dto.*;
 import com.management.student_center.dto.student.*;
 import com.management.student_center.dto.student.StudentDTO;
 import com.management.student_center.entity.*;
+import com.management.student_center.enums.ActivityActionType;
+import com.management.student_center.enums.ActivityTargetType;
 import com.management.student_center.repository.*;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -41,6 +43,8 @@ public class StudentService {
 	private final ImageService imageService;
 	private final StudentTuitionRepository studentTuitionRepository;
 	private final StudentTuitionDetailRepository studentTuitionDetailRepository;
+	private final ActivityLogService activityLogService;
+	private final CurrentUserService currentUserService; // Thêm dependency này
 
 	private static final Map<String, String> roleMapping = Map.of("R0", "Admin", "R1", "Giáo viên", "R2", "Học sinh");
 
@@ -48,7 +52,8 @@ public class StudentService {
 			AddressRepository addressRepository, ParentContactRepository parentContactRepository,
 			StudentSubjectRepository studentSubjectRepository, PasswordEncoder passwordEncoder,
 			ImageService imageService, StudentTuitionDetailRepository studentTuitionDetailRepository,
-			StudentTuitionRepository studentTuitionRepository) {
+			StudentTuitionRepository studentTuitionRepository, ActivityLogService activityLogService,
+			CurrentUserService currentUserService) { // Thêm vào constructor
 		this.studentRepository = studentRepository;
 		this.userRepository = userRepository;
 		this.addressRepository = addressRepository;
@@ -58,6 +63,8 @@ public class StudentService {
 		this.imageService = imageService;
 		this.studentTuitionDetailRepository = studentTuitionDetailRepository;
 		this.studentTuitionRepository = studentTuitionRepository;
+		this.activityLogService = activityLogService;
+		this.currentUserService = currentUserService; // Khởi tạo
 	}
 
 	private Boolean parseStatus(String statusStr) {
@@ -67,14 +74,17 @@ public class StudentService {
 	}
 
 	public StudentGroupResponseDTO getAllStudentsGroupBySchool(Map<String, String> filters) {
+		Boolean status = parseStatus(filters.get("status"));
 
+		if (status == null) {
+			status = true;
+		}
 		Specification<Student> spec = Specification.where(StudentSpecification.hasRole("R2"))
 				.and(StudentSpecification.nameContains(filters.get("name")))
 				.and(StudentSpecification.genderIs(parseGender(filters.get("gender"))))
 				.and(StudentSpecification.gradeContains(filters.get("grade")))
 				.and(StudentSpecification.schoolNameContains(filters.get("schoolName")))
-				.and(StudentSpecification.hasStatus(parseStatus(filters.get("status"))));
-
+				.and(StudentSpecification.hasStatus(status));
 		List<Student> students = studentRepository.findAll(spec);
 
 		long totalStudents = students.size();
@@ -104,11 +114,9 @@ public class StudentService {
 			String school = (s.getSchoolName() != null && !s.getSchoolName().isBlank()) ? s.getSchoolName()
 					: "Chưa có trường";
 
-			// ===== group danh sách =====
 			groupResult.computeIfAbsent(level, k -> new HashMap<>()).computeIfAbsent(school, k -> new ArrayList<>())
 					.add(s);
 
-			// ===== đếm số lượng =====
 			totalByLevelAndSchool.computeIfAbsent(level, k -> new HashMap<>()).merge(school, 1L, Long::sum);
 		}
 
@@ -120,26 +128,26 @@ public class StudentService {
 		return response;
 	}
 
-	// Lấy 5 học sinh mới nhất
 	public List<StudentDTO> getLatestStudents() {
 		List<Student> students = studentRepository.findTop5ByOrderByCreatedAtDesc();
 
 		return students.stream().map(this::mapToStudentDTO).collect(Collectors.toList());
 	}
 
-	/**
-	 * getAllStudents (Có filter User, Student, Subject)
-	 */
 	public PaginatedResponseDTO<StudentDTO> getAllStudents(int page, int limit, Map<String, String> filters) {
 		Pageable pageable = PageRequest.of(page - 1, limit);
+		Boolean status = parseStatus(filters.get("status"));
 
+		if (status == null) {
+			status = true;
+		}
 		Specification<Student> spec = Specification.where(StudentSpecification.hasRole("R2"))
 				.and(StudentSpecification.nameContains(filters.get("name")))
 				.and(StudentSpecification.genderIs(parseGender(filters.get("gender"))))
 				.and(StudentSpecification.gradeContains(filters.get("grade")))
 				.and(StudentSpecification.schoolNameContains(filters.get("schoolName")))
 				.and(StudentSpecification.hasSubjectName(filters.get("subject")))
-				.and(StudentSpecification.hasStatus(parseStatus(filters.get("status"))));
+				.and(StudentSpecification.hasStatus(status));
 		;
 
 		Page<Student> studentPage = studentRepository.findAll(spec, pageable);
@@ -153,21 +161,14 @@ public class StudentService {
 		return new PaginatedResponseDTO<>(studentDTOs, pagination);
 	}
 
-	/**
-	 * getStudentById
-	 */
 	public StudentDTO getStudentById(Long userId) {
 		Student student = studentRepository.findByUserInfoId(userId)
 				.orElseThrow(() -> new RuntimeException("Không tìm thấy học viên!"));
 		return mapToStudentDTO(student);
 	}
 
-	/**
-	 * createNewStudent
-	 */
 	@Transactional
 	public User createNewStudent(CreateStudentDTO dto, MultipartFile file) {
-		// Validation cơ bản
 		if (dto.getEmail() == null || dto.getFullName() == null || dto.getRoleId() == null) {
 			throw new RuntimeException("Thiếu các thông tin bắt buộc.");
 		}
@@ -178,7 +179,6 @@ public class StudentService {
 			throw new RuntimeException("Email này đã tồn tại.");
 		}
 
-		// 1. Tạo User
 		String hashedPassword = passwordEncoder.encode(dto.getPassword() != null ? dto.getPassword() : "123456");
 		String imagePath = (file != null && !file.isEmpty()) ? imageService.saveImage(file) : null;
 
@@ -193,7 +193,6 @@ public class StudentService {
 		newUser.setStatus(dto.getStatus() != null ? dto.getStatus() : true);
 		User savedUser = userRepository.save(newUser);
 
-		// 2. Tạo Address
 		Address savedAddress = null;
 		if (dto.getAddress() != null) {
 			Address newAddress = new Address();
@@ -203,7 +202,6 @@ public class StudentService {
 			savedAddress = addressRepository.save(newAddress);
 		}
 
-		// 3. Tạo Student
 		Student newStudent = new Student();
 		newStudent.setUserInfo(savedUser);
 		newStudent.setAddressInfo(savedAddress);
@@ -212,7 +210,6 @@ public class StudentService {
 		newStudent.setSchoolName(dto.getSchoolName());
 		Student savedStudent = studentRepository.save(newStudent);
 
-		// 4. Tạo ParentContacts
 		if (dto.getParents() != null && !dto.getParents().isEmpty()) {
 			for (ParentContactDTO pDto : dto.getParents()) {
 				ParentContact pc = new ParentContact();
@@ -223,6 +220,15 @@ public class StudentService {
 				parentContactRepository.save(pc);
 			}
 		}
+
+		// LOG: Lấy current user từ service
+		User currentUser = currentUserService.getCurrentUser();
+		logStudentAction(
+			currentUser,
+			ActivityActionType.CREATE,
+			savedStudent,
+			"đã tạo học sinh mới: " + savedUser.getFullName()
+		);
 
 		return savedUser;
 	}
@@ -238,11 +244,17 @@ public class StudentService {
 		String imagePath = imageService.saveImage(file);
 		user.setImage(imagePath);
 		userRepository.save(user);
+
+		// LOG: Lấy current user từ service
+		User currentUser = currentUserService.getCurrentUser();
+		logStudentAction(
+			currentUser,
+			ActivityActionType.UPDATE,
+			student,
+			"đã cập nhật avatar của học sinh: " + user.getFullName()
+		);
 	}
 
-	/**
-	 * updateStudent
-	 */
 	@Transactional
 	public void updateStudent(Long userId, CreateStudentDTO dto, MultipartFile file) {
 		Student student = studentRepository.findByUserInfoId(userId)
@@ -250,14 +262,16 @@ public class StudentService {
 		User user = student.getUserInfo();
 		Address address = student.getAddressInfo();
 
-		// 1. Update User
+		String oldName = user.getFullName();
+		String oldGrade = student.getGrade();
+		String oldSchool = student.getSchoolName();
+
 		user.setFullName(dto.getFullName());
 		user.setPhoneNumber(dto.getPhoneNumber());
 		user.setGender(dto.getGender());
 		if (dto.getStatus() != null) {
 			user.setStatus(dto.getStatus());
 		}
-		// Không update email ở đây để an toàn, hoặc tùy logic
 
 		if (file != null && !file.isEmpty()) {
 			imageService.deleteImage(user.getImage());
@@ -265,16 +279,14 @@ public class StudentService {
 		}
 		userRepository.save(user);
 
-		// 2. Update Student info
 		student.setGrade(dto.getGrade());
 		student.setSchoolName(dto.getSchoolName());
 		student.setDateOfBirth(dto.getDateOfBirth());
 
-		// 3. Update Address
 		if (dto.getAddress() != null) {
 			if (address == null) {
 				address = new Address();
-				student.setAddressInfo(address); // Link lại nếu mới tạo
+				student.setAddressInfo(address);
 			}
 			address.setDetails(dto.getAddress().getDetails());
 			address.setWard(dto.getAddress().getWard());
@@ -283,7 +295,6 @@ public class StudentService {
 		}
 		studentRepository.save(student);
 
-		// 4. Update ParentContacts (Xóa cũ, thêm mới cho đơn giản)
 		parentContactRepository.deleteByStudentId(student.getId());
 		if (dto.getParents() != null) {
 			for (ParentContactDTO pDto : dto.getParents()) {
@@ -295,6 +306,20 @@ public class StudentService {
 				parentContactRepository.save(pc);
 			}
 		}
+
+		String description = "đã cập nhật thông tin học sinh: " + user.getFullName();
+		if (!oldName.equals(user.getFullName())) {
+			description += " (tên cũ: " + oldName + ")";
+		}
+		
+		// LOG: Lấy current user từ service
+		User currentUser = currentUserService.getCurrentUser();
+		logStudentAction(
+			currentUser,
+			ActivityActionType.UPDATE,
+			student,
+			description
+		);
 	}
 
 	/**
@@ -302,76 +327,153 @@ public class StudentService {
 	 */
 	@Transactional
 	public void deleteStudent(Long userId) {
-		User user = userRepository.findById(userId)
-				.orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng!"));
 
-		Optional<Student> studentOpt = studentRepository.findByUserInfoId(userId);
-		if (studentOpt.isPresent()) {
-			Student student = studentOpt.get();
+	    Student student = studentRepository.findByUserInfoId(userId)
+	            .orElseThrow(() -> new RuntimeException("Không tìm thấy học viên!"));
 
-			// --- BỔ SUNG: Kiểm tra học phí ---
-			long unpaidCount = studentTuitionDetailRepository.countUnpaidByStudent(student.getId());
-			if (unpaidCount > 0) {
-				throw new IllegalStateException("Không thể xóa học sinh vì còn nợ học phí");
-			}
+	    User user = student.getUserInfo();
 
-			// Xóa ParentContacts
-			parentContactRepository.deleteByStudentId(student.getId());
+	    if (Boolean.FALSE.equals(user.getStatus())) {
+	        throw new RuntimeException("Học viên đã bị ngưng hoạt động trước đó.");
+	    }
 
-			// Xóa StudentSubjects
-			studentSubjectRepository.deleteByStudentId(student.getId());
+	    user.setStatus(false);
 
-			// Xóa Address
-			if (student.getAddressInfo() != null) {
-				addressRepository.delete(student.getAddressInfo());
-			}
+	    userRepository.save(user);
 
-			// Xóa Student
-			studentRepository.delete(student);
-		}
-		// Xóa ảnh
-		if (user.getImage() != null) {
-			imageService.deleteImage(user.getImage());
-		}
-
-		// Xóa User
-		userRepository.delete(user);
+	    User currentUser = currentUserService.getCurrentUser();
+	    String description = "đã vô hiệu hóa học sinh: " + user.getFullName() + " (ID: " + userId + ")";
+	    logStudentAction(currentUser, ActivityActionType.UPDATE, student, description);
 	}
 
 	/**
-	 * deleteMultipleStudents
+	 * Cập nhật nhiều học sinh
+	 */
+	@Transactional
+	public void updateMultipleStudents(List<Long> userIds, CreateStudentDTO dto, MultipartFile file) {
+		if (userIds == null || userIds.isEmpty()) {
+			throw new RuntimeException("Danh sách ID trống!");
+		}
+
+		List<String> studentNames = new ArrayList<>();
+		List<Long> studentIds = new ArrayList<>();
+
+		for (Long id : userIds) {
+			Student student = studentRepository.findByUserInfoId(id)
+					.orElseThrow(() -> new RuntimeException("Không tìm thấy học viên với ID: " + id));
+			User user = student.getUserInfo();
+			studentNames.add(user.getFullName());
+			studentIds.add(student.getId());
+
+			// Cập nhật từng học sinh (gọi lại logic update hiện tại)
+			updateStudent(id, dto, file);
+		}
+
+		// LOG CHUNG cho việc cập nhật nhiều học sinh
+		User currentUser = currentUserService.getCurrentUser();
+		String description = "đã cập nhật " + userIds.size() + " học sinh: " + String.join(", ", studentNames);
+		String meta = """
+				{
+				    "action": "UPDATE_MULTIPLE",
+				    "count": %d,
+				    "userIds": %s,
+				    "studentIds": %s,
+				    "studentNames": "%s"
+				}
+				""".formatted(
+				userIds.size(),
+				userIds.toString(),
+				studentIds.toString(),
+				String.join(", ", studentNames)
+		);
+
+		activityLogService.log(
+			currentUser,
+			ActivityActionType.UPDATE,
+			ActivityTargetType.STUDENT_LIST,
+			null,
+			description,
+			meta
+		);
+	}
+
+	/**
+	 * Xóa nhiều học sinh - GHI LOG CHUNG
 	 */
 	@Transactional
 	public void deleteMultipleStudents(List<Long> userIds) {
-		if (userIds == null || userIds.isEmpty())
+		if (userIds == null || userIds.isEmpty()) {
 			throw new RuntimeException("Danh sách ID trống!");
+		}
+		
+		List<String> studentNames = new ArrayList<>();
+		List<Long> studentIds = new ArrayList<>();
+		
+		// Lấy thông tin trước khi xóa
 		for (Long id : userIds) {
+			Optional<Student> studentOpt = studentRepository.findByUserInfoId(id);
+			if (studentOpt.isPresent()) {
+				Student student = studentOpt.get();
+				User user = student.getUserInfo();
+				studentNames.add(user.getFullName());
+				studentIds.add(student.getId());
+			}
+		}
+		
+		// LOG CHUNG trước khi xóa
+		User currentUser = currentUserService.getCurrentUser();
+		String description = "đã xóa " + userIds.size() + " học sinh: " + String.join(", ", studentNames);
+		String meta = """
+				{
+				    "action": "DELETE_MULTIPLE",
+				    "count": %d,
+				    "userIds": %s,
+				    "studentIds": %s,
+				    "studentNames": "%s"
+				}
+				""".formatted(
+				userIds.size(),
+				userIds.toString(),
+				studentIds.toString(),
+				String.join(", ", studentNames)
+		);
 
+		activityLogService.log(
+			currentUser,
+			ActivityActionType.DELETE,
+			ActivityTargetType.STUDENT_LIST,
+			null,
+			description,
+			meta
+		);
+		
+		// Thực hiện xóa từng học sinh
+		for (Long id : userIds) {
 			deleteStudent(id);
-
 		}
 	}
 
-	/**
-	 * exportStudentsToExcel
-	 */
 	public byte[] exportStudentsToExcel(Map<String, String> filters) throws IOException {
-		// Lấy list (không phân trang)
 		Boolean gender = null;
 		if (filters.get("gender") != null && !filters.get("gender").isBlank()) {
 			gender = parseGender(filters.get("gender"));
 		}
+		Boolean status = parseStatus(filters.get("status"));
+
+		if (status == null) {
+			status = true;
+		}
 		Specification<Student> spec = Specification.where(StudentSpecification.hasRole("R2"))
 				.and(StudentSpecification.nameContains(filters.get("name"))).and(StudentSpecification.genderIs(gender))
 				.and(StudentSpecification.gradeContains(filters.get("grade")))
-				.and(StudentSpecification.schoolNameContains(filters.get("schoolName")));
+				.and(StudentSpecification.schoolNameContains(filters.get("schoolName")))
+				.and(StudentSpecification.hasStatus(status));
 
 		List<Student> students = studentRepository.findAll(spec);
 
 		Workbook workbook = new XSSFWorkbook();
 		Sheet sheet = workbook.createSheet("Danh sách học viên");
 
-		// Header
 		Row headerRow = sheet.createRow(0);
 		String[] headers = { "STT", "Họ và tên", "Email", "Giới tính", "Ngày sinh", "SĐT", "Khối", "Trường", "Địa chỉ",
 				"Phụ huynh", "SĐT phụ huynh" };
@@ -391,7 +493,6 @@ public class StudentService {
 			cell.setCellStyle(headerStyle);
 		}
 
-		// Data
 		int rowNum = 1;
 		for (int i = 0; i < students.size(); i++) {
 			Student s = students.get(i);
@@ -418,7 +519,7 @@ public class StudentService {
 			if (a != null) {
 				addressStr = String.join(", ", Optional.ofNullable(a.getDetails()).orElse(""),
 						Optional.ofNullable(a.getWard()).orElse(""), Optional.ofNullable(a.getProvince()).orElse(""))
-						.replaceAll("^, |^, |, $", ""); // Clean string
+						.replaceAll("^, |^, |, $", "");
 			}
 			row.createCell(8).setCellValue(addressStr);
 
@@ -434,7 +535,6 @@ public class StudentService {
 
 			row.createCell(9).setCellValue(parentNameStr);
 			row.createCell(10).setCellValue(parentPhoneStr);
-
 		}
 
 		for (int i = 0; i < headers.length; i++) {
@@ -444,10 +544,33 @@ public class StudentService {
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		workbook.write(out);
 		workbook.close();
+		
+		// LOG: Lấy current user và ghi log export
+		User currentUser = currentUserService.getCurrentUser();
+		String description = "đã xuất danh sách học sinh ra Excel với " + students.size() + " bản ghi";
+		String meta = """
+				{
+				    "action": "EXPORT_EXCEL",
+				    "totalRecords": %d,
+				    "filters": %s
+				}
+				""".formatted(
+				students.size(),
+				filters != null ? filters.toString() : "{}"
+		);
+
+		activityLogService.log(
+			currentUser,
+			ActivityActionType.VIEW,
+			ActivityTargetType.STUDENT_LIST,
+			null,
+			description,
+			meta
+		);
+		
 		return out.toByteArray();
 	}
 
-	// Helper Methods
 	private StudentDTO mapToStudentDTO(Student student) {
 		User user = student.getUserInfo();
 		Address address = student.getAddressInfo();
@@ -490,9 +613,8 @@ public class StudentService {
 		dto.setParents(parentDTOs);
 		dto.setSubjects(subjectDTOs);
 		dto.setStatus(user.getStatus());
-		// Set createdAt và updatedAt
-		dto.setCreatedAt(student.getCreatedAt()); // Set createdAt
-		dto.setUpdatedAt(student.getUpdatedAt()); // Set updatedAt
+		dto.setCreatedAt(student.getCreatedAt());
+		dto.setUpdatedAt(student.getUpdatedAt());
 
 		return dto;
 	}
@@ -517,8 +639,68 @@ public class StudentService {
 
 		return new StudentStatisticDTO(totalStudents, newStudentsThisMonth, percentageIncrease);
 	}
+	
+	@Transactional
+	public void restoreStudent(Long userId) {
+
+		Student student = studentRepository.findByUserInfoId(userId)
+				.orElseThrow(() -> new RuntimeException("Không tìm thấy học viên!"));
+
+		User user = student.getUserInfo();
+
+		if (Boolean.TRUE.equals(user.getStatus())) {
+			throw new RuntimeException("Học viên đang hoạt động.");
+		}
+
+		user.setStatus(true);
+
+		userRepository.save(user);
+	}
 
 	public List<String> getDistinctSchools() {
 		return studentRepository.findDistinctSchoolNames();
+	}
+
+	// =========================
+	// HELPER LOG METHODS
+	// =========================
+
+	/**
+	 * Ghi log cho hành động trên học sinh
+	 * @param user Người thực hiện (đã được lấy từ CurrentUserService)
+	 * @param actionType Loại hành động
+	 * @param student Đối tượng học sinh
+	 * @param description Mô tả hành động
+	 */
+	private void logStudentAction(
+			User user,
+			ActivityActionType actionType,
+			Student student,
+			String description
+	) {
+		String meta = """
+				{
+				    "studentId": %d,
+				    "fullName": "%s",
+				    "grade": "%s",
+				    "schoolName": "%s",
+				    "email": "%s"
+				}
+				""".formatted(
+				student.getId(),
+				student.getUserInfo().getFullName(),
+				student.getGrade() != null ? student.getGrade() : "null",
+				student.getSchoolName() != null ? student.getSchoolName() : "null",
+				student.getUserInfo().getEmail()
+		);
+
+		activityLogService.log(
+				user,
+				actionType,
+				ActivityTargetType.STUDENT_LIST,
+				student.getId(), 
+				description,
+				meta
+		);
 	}
 }

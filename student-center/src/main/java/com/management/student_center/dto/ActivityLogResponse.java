@@ -1,6 +1,5 @@
 package com.management.student_center.dto;
 
-
 import java.time.LocalDateTime;
 
 public class ActivityLogResponse {
@@ -25,84 +24,95 @@ public class ActivityLogResponse {
 
     private LocalDateTime createdAt;
 
-	public Long getId() {
-		return id;
-	}
+    // Thêm trường isRead
+    private Boolean isRead;
 
-	public void setId(Long id) {
-		this.id = id;
-	}
-	
+    // Getter và Setter
+    public Long getId() {
+        return id;
+    }
 
-	public Long getUserId() {
-		return userId;
-	}
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-	public void setUserId(Long userId) {
-		this.userId = userId;
-	}
+    public Long getUserId() {
+        return userId;
+    }
 
-	public String getUserName() {
-		return userName;
-	}
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
 
-	public void setUserName(String userName) {
-		this.userName = userName;
-	}
+    public String getUserName() {
+        return userName;
+    }
 
-	public String getUserImage() {
-		return userImage;
-	}
+    public void setUserName(String userName) {
+        this.userName = userName;
+    }
 
-	public void setUserImage(String userImage) {
-		this.userImage = userImage;
-	}
+    public String getUserImage() {
+        return userImage;
+    }
 
-	public String getActionType() {
-		return actionType;
-	}
+    public void setUserImage(String userImage) {
+        this.userImage = userImage;
+    }
 
-	public void setActionType(String actionType) {
-		this.actionType = actionType;
-	}
+    public String getActionType() {
+        return actionType;
+    }
 
-	public String getTargetType() {
-		return targetType;
-	}
+    public void setActionType(String actionType) {
+        this.actionType = actionType;
+    }
 
-	public void setTargetType(String targetType) {
-		this.targetType = targetType;
-	}
+    public String getTargetType() {
+        return targetType;
+    }
 
-	public Long getTargetId() {
-		return targetId;
-	}
+    public void setTargetType(String targetType) {
+        this.targetType = targetType;
+    }
 
-	public void setTargetId(Long targetId) {
-		this.targetId = targetId;
-	}
+    public Long getTargetId() {
+        return targetId;
+    }
 
-	public String getDescription() {
-		return description;
-	}
+    public void setTargetId(Long targetId) {
+        this.targetId = targetId;
+    }
 
-	public void setDescription(String description) {
-		this.description = description;
-	}
+    public String getDescription() {
+        return description;
+    }
 
-	public String getMeta() {
-		return meta;
-	}
+    public void setDescription(String description) {
+        this.description = description;
+    }
 
-	public void setMeta(String meta) {
-		this.meta = meta;
-	}
+    public String getMeta() {
+        return meta;
+    }
 
-	public LocalDateTime getCreatedAt() {
-		return createdAt;
-	}
+    public void setMeta(String meta) {
+        this.meta = meta;
+    }
 
-	public void setCreatedAt(LocalDateTime createdAt) {
-		this.createdAt = createdAt;
-	}
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public Boolean getIsRead() {
+        return isRead;
+    }
+
+    public void setIsRead(Boolean isRead) {
+        this.isRead = isRead;
+    }
 }

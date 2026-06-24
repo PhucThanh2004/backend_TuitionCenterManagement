@@ -5,8 +5,15 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import java.time.LocalDateTime;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.management.student_center.enums.BillingType;
+import com.management.student_center.enums.PaymentPlanType;
 
+import java.time.LocalDateTime;
+@JsonIgnoreProperties({
+    "hibernateLazyInitializer",
+    "handler"
+})
 @Entity
 @Table(name = "subjects")
 public class Subject {
@@ -68,6 +75,39 @@ public class Subject {
         this.updatedAt = LocalDateTime.now();
     }
 
+    @Enumerated(EnumType.STRING)
+    private BillingType billingType;
+
+    public BillingType getBillingType() {
+		return billingType;
+	}
+
+	public void setBillingType(BillingType billingType) {
+		this.billingType = billingType;
+	}
+
+	public PaymentPlanType getPaymentPlanType() {
+		return paymentPlanType;
+	}
+
+	public void setPaymentPlanType(PaymentPlanType paymentPlanType) {
+		this.paymentPlanType = paymentPlanType;
+	}
+
+	public Integer getInstallmentCount() {
+		return installmentCount;
+	}
+
+	public void setInstallmentCount(Integer installmentCount) {
+		this.installmentCount = installmentCount;
+	}
+
+	@Enumerated(EnumType.STRING)
+    private PaymentPlanType paymentPlanType;
+
+    private Integer installmentCount;
+    
+    
     // Getter & Setter methods for createdAt and updatedAt
     public LocalDateTime getCreatedAt() {
         return createdAt;
@@ -119,7 +159,7 @@ public class Subject {
     public List<TeacherSubject> getTeacherSubjects() { return teacherSubjects; }
     public void setTeacherSubjects(List<TeacherSubject> teacherSubjects) { this.teacherSubjects = teacherSubjects; }
 
-    @Transient   // ❗ Not stored in DB, but allows set/get
+    @Transient 
     private Long currentStudents;
 
     public Long getCurrentStudents() {

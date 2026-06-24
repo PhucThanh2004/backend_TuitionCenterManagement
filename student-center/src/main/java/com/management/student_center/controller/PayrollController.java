@@ -7,19 +7,31 @@ import com.management.student_center.dto.payroll.PayrollFinalizeDTO;
 import com.management.student_center.dto.payroll.PayrollListItemDTO;
 import com.management.student_center.dto.payroll.PayrollPreviewRequestDTO;
 import com.management.student_center.dto.payroll.PayrollPreviewResponseDTO;
+import com.management.student_center.dto.payroll.TeacherPaymentResponseDTO;
+import com.management.student_center.dto.payroll.TeacherPayrollAdjustmentDTO;
 import com.management.student_center.dto.payroll.TeacherPayrollConfirmDTO;
+import com.management.student_center.dto.payroll.TeacherPayrollRejectDTO;
 import com.management.student_center.entity.TeacherPayment;
 import com.management.student_center.service.payroll.PayrollBatchService;
 import com.management.student_center.service.payroll.PayrollGenerationService;
 import com.management.student_center.service.payroll.PayrollPreviewService;
 import com.management.student_center.service.payroll.PayrollQueryService;
+import com.management.student_center.service.payroll.TeacherPayrollActionService;
 import com.management.student_center.dto.payroll.TeacherPayrollSummaryDTO;
 import com.management.student_center.service.payroll.TeacherPayrollService;
-
+import com.management.student_center.service.payroll.PayrollExcelExportService;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+
+import java.io.ByteArrayInputStream;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 @RestController
 @RequestMapping("/v1/api/payroll")
@@ -35,9 +47,14 @@ public class PayrollController {
 
 	private final TeacherPayrollService teacherPayrollService;
 
+	private final PayrollExcelExportService excelExportService;
+
+	private final TeacherPayrollActionService teacherPayrollActionService;
+
 	public PayrollController(PayrollPreviewService payrollPreviewService,
 			PayrollGenerationService payrollGenerationService, PayrollQueryService payrollQueryService,
-			PayrollBatchService payrollBatchService, TeacherPayrollService teacherPayrollService) {
+			PayrollBatchService payrollBatchService, TeacherPayrollService teacherPayrollService,
+			PayrollExcelExportService excelExportService, TeacherPayrollActionService teacherPayrollActionService) {
 
 		this.payrollPreviewService = payrollPreviewService;
 
@@ -48,6 +65,10 @@ public class PayrollController {
 		this.payrollBatchService = payrollBatchService;
 
 		this.teacherPayrollService = teacherPayrollService;
+
+		this.excelExportService = excelExportService;
+
+		this.teacherPayrollActionService = teacherPayrollActionService;
 	}
 
 	/*
@@ -78,7 +99,7 @@ public class PayrollController {
 	@PostMapping("/confirm")
 	public ResponseEntity<String> confirmPayroll(@RequestBody TeacherPayrollConfirmDTO request) {
 
-		payrollGenerationService.confirmPayroll(request);
+		teacherPayrollActionService.confirmPayroll(request);
 
 		return ResponseEntity.ok("Teacher confirmed payroll successfully");
 	}
@@ -98,9 +119,7 @@ public class PayrollController {
 	@GetMapping
 	public ResponseEntity<List<PayrollListItemDTO>> getAllPayrolls() {
 
-	    return ResponseEntity.ok(
-	            payrollQueryService.getAllPayrolls()
-	    );
+		return ResponseEntity.ok(payrollQueryService.getAllPayrolls());
 	}
 
 	@GetMapping("/{id}")
@@ -110,9 +129,34 @@ public class PayrollController {
 	}
 
 	@GetMapping("/{id}/export")
-	public ResponseEntity<PayrollDetailResponseDTO> exportPayroll(@PathVariable Integer id) {
+	public ResponseEntity<InputStreamResource> exportPayroll(@PathVariable Integer id) {
+		PayrollDetailResponseDTO payroll = payrollQueryService.getPayrollById(id);
+		ByteArrayInputStream excelStream = excelExportService.exportPayrollDetailToExcel(payroll);
 
-		return ResponseEntity.ok(payrollQueryService.exportPayroll(id));
+		String filename = "bang_luong_gv_" + payroll.getTeacherName() + "_" + payroll.getMonth() + "_"
+				+ payroll.getYear() + ".xlsx";
+		// Loại bỏ ký tự đặc biệt trong tên file
+		filename = filename.replaceAll("[^a-zA-Z0-9._-]", "_");
+
+		return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+				.contentType(
+						MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+				.body(new InputStreamResource(excelStream));
+	}
+
+	// Xuất tất cả bảng lương ra Excel
+	@GetMapping("/export/all")
+	public ResponseEntity<InputStreamResource> exportAllPayrolls() {
+		List<PayrollListItemDTO> payrolls = payrollQueryService.getAllPayrolls();
+		ByteArrayInputStream excelStream = excelExportService.exportAllPayrollsToExcel(payrolls);
+
+		String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+		String filename = "danh_sach_bang_luong_" + timestamp + ".xlsx";
+
+		return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+				.contentType(
+						MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+				.body(new InputStreamResource(excelStream));
 	}
 
 	@GetMapping("/monthly-preview")
@@ -162,4 +206,22 @@ public class PayrollController {
 
 		return ResponseEntity.ok(teacherPayrollService.getMyPayrollDetail(teacherId, paymentId));
 	}
+
+	@PostMapping("/reject")
+	public ResponseEntity<String> rejectPayroll(@RequestBody TeacherPayrollRejectDTO request) {
+
+		teacherPayrollActionService.rejectPayroll(request);
+
+		return ResponseEntity.ok("Teacher rejected payroll successfully");
+	}
+
+	@PostMapping("/regenerate")
+	public ResponseEntity<TeacherPaymentResponseDTO> regenerate(@RequestBody PayrollPreviewRequestDTO request) {
+
+		TeacherPaymentResponseDTO response =
+	            payrollGenerationService.regeneratePayroll(request);
+
+		return ResponseEntity.ok(response);
+	}
+	
 }

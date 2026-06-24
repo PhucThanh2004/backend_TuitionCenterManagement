@@ -17,6 +17,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface SessionRepository extends JpaRepository<Session, Long> {
+	
+	Optional<Session> findById (Long sessionId);
 	boolean existsByPlannedSessionDetailId(Long sessionDetailId);
 
 	List<Session> findBySubject_IdOrderBySessionDateAsc(Long subjectId);
@@ -178,4 +180,20 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
 			""")
 	boolean existsTeacherSessionOverlap(@Param("teacherId") Long teacherId, @Param("date") LocalDate date,
 			@Param("startTime") LocalTime startTime, @Param("endTime") LocalTime endTime);
+	List<Session> findBySubjectId(Long subjectId);
+	
+	 /**
+     * Lấy lịch dạy của giáo viên trong khoảng thời gian
+     * @param teacherId ID của giáo viên
+     * @param startDate Ngày bắt đầu
+     * @param endDate Ngày kết thúc
+     * @return Danh sách các buổi học
+     */
+    @Query("SELECT s FROM Session s WHERE s.subject IN " +
+           "(SELECT ts.subject FROM TeacherSubject ts WHERE ts.teacher.id = :teacherId) " +
+           "AND s.sessionDate BETWEEN :startDate AND :endDate")
+    List<Session> findTeacherSessionsInDateRange(@Param("teacherId") Long teacherId,
+                                                   @Param("startDate") LocalDate startDate,
+                                                   @Param("endDate") LocalDate endDate);
+
 }

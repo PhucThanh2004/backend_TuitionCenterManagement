@@ -2,6 +2,8 @@ package com.management.student_center.controller;
 
 import com.management.student_center.dto.TeacherBasicDTO;
 import com.management.student_center.service.TeacherService;
+import com.management.student_center.service.TeacherSuggestionService;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,6 +13,8 @@ import com.management.student_center.dto.teacher.TeacherDTO;
 import com.management.student_center.dto.teacher.TeacherIdResponse;
 import com.management.student_center.dto.teacher.TeacherStatisticsDTO;
 import com.management.student_center.dto.teacher.UpdateEmployeeDTO;
+import com.management.student_center.dto.teacherSuggestion.TeacherSuggestionDTO;
+import com.management.student_center.dto.teacherSuggestion.TeacherSuggestionRequest;
 import com.management.student_center.entity.User;
 
 import org.springframework.http.HttpHeaders;
@@ -26,9 +30,11 @@ import java.util.Map;
 public class TeacherController {
 
 	private final TeacherService teacherService;
+	 private final TeacherSuggestionService suggestionService;
 
-	public TeacherController(TeacherService teacherService) {
+	public TeacherController(TeacherService teacherService, TeacherSuggestionService suggestionService) {
 		this.teacherService = teacherService;
+		this.suggestionService = suggestionService;
 	}
 
 	@GetMapping("/teachers/basic")
@@ -220,4 +226,30 @@ public class TeacherController {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
 		}
 	}
+	
+	 @PostMapping("teachers/suggest")
+	    public ResponseEntity<List<TeacherSuggestionDTO>> suggestTeachers(@RequestBody TeacherSuggestionRequest request) {
+	        List<TeacherSuggestionDTO> suggestions = suggestionService.suggestTeachers(request);
+	        
+	        return ResponseEntity.ok(suggestions);
+	    }
+	 
+	 @PatchMapping("/teachers/{id}/restore")
+		public ResponseEntity<Map<String, Object>> restoreTeacher(@PathVariable Long id) {
+
+			try {
+				teacherService.restoreTeacher(id);
+
+				Map<String, Object> response = new HashMap<>();
+				response.put("errCode", 0);
+				response.put("message", "Khôi phục giáo viên thành công!");
+
+				return ResponseEntity.ok(response);
+
+			} catch (RuntimeException e) {
+				return createErrorResponse(e, 404);
+			} catch (Exception e) {
+				return createErrorResponse(e, 400);
+			}
+		}
 }

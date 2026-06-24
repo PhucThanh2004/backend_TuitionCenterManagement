@@ -52,6 +52,14 @@ public class PayrollQueryService {
 
 		response.setPaymentDate(payment.getPaymentDate());
 
+		response.setRevisionNo(payment.getRevisionNo());
+
+		response.setPreviousAmount(payment.getPreviousAmount());
+
+		response.setLastAdjustmentReason(payment.getLastAdjustmentReason());
+
+		response.setAdjustedAt(payment.getAdjustedAt());
+
 		List<PayrollSessionDetailDTO> sessionDtos = new ArrayList<>();
 
 		for (TeacherPaymentDetail detail : details) {
@@ -114,6 +122,8 @@ public class PayrollQueryService {
 			dto.setStatus(payment.getStatus());
 
 			dto.setPaymentDate(payment.getPaymentDate());
+
+			dto.setRevisionNo(payment.getRevisionNo());
 
 			return dto;
 		}).toList();

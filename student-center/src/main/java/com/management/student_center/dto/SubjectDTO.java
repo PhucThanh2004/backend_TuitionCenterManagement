@@ -4,130 +4,135 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import com.management.student_center.dto.subject.SubjectTypeDTO;
+import com.management.student_center.enums.BillingType;
+import com.management.student_center.enums.PaymentPlanType;
 
 public class SubjectDTO {
-    private Long id;
-    private String name;
-    private String grade;
-    private BigDecimal price;
-    private String status;
-    private Integer maxStudents;
-    private Integer sessionsPerWeek;
-    private String image;
-    private String note;
-    private Long currentStudents;
-    private List<TeacherSubjectDTO> teacherSubjects;
-    private SubjectTypeDTO subjectType;
+	private Long id;
+	private String name;
+	private String grade;
+	private BigDecimal price;
+	private String status;
+	private Integer maxStudents;
+	private Integer sessionsPerWeek;
+	private String image;
+	private String note;
+	private Long currentStudents;
+	private List<TeacherSubjectDTO> teacherSubjects;
+	private SubjectTypeDTO subjectType;
+	private BillingType billingType;
+	private PaymentPlanType paymentPlanType;
+	private Integer installmentCount;
 
-    // Add createdAt and updatedAt
-    private String createdAt;
-    private String updatedAt;
+	// Add createdAt and updatedAt
+	private String createdAt;
+	private String updatedAt;
 
-    // Getter & Setter methods for createdAt and updatedAt
-    public String getCreatedAt() {
-        return createdAt;
-    }
+	// Getter & Setter methods for createdAt and updatedAt
+	public String getCreatedAt() {
+		return createdAt;
+	}
 
-    public void setCreatedAt(String createdAt) {
-        this.createdAt = createdAt;
-    }
+	public void setCreatedAt(String createdAt) {
+		this.createdAt = createdAt;
+	}
 
-    public String getUpdatedAt() {
-        return updatedAt;
-    }
+	public String getUpdatedAt() {
+		return updatedAt;
+	}
 
-    public void setUpdatedAt(String updatedAt) {
-        this.updatedAt = updatedAt;
-    }
+	public void setUpdatedAt(String updatedAt) {
+		this.updatedAt = updatedAt;
+	}
 
-    // Existing Getters and Setters
-    public Long getId() {
-        return id;
-    }
+	// Existing Getters and Setters
+	public Long getId() {
+		return id;
+	}
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+	public void setId(Long id) {
+		this.id = id;
+	}
 
-    public String getName() {
-        return name;
-    }
+	public String getName() {
+		return name;
+	}
 
-    public void setName(String name) {
-        this.name = name;
-    }
+	public void setName(String name) {
+		this.name = name;
+	}
 
-    public String getGrade() {
-        return grade;
-    }
+	public String getGrade() {
+		return grade;
+	}
 
-    public void setGrade(String grade) {
-        this.grade = grade;
-    }
+	public void setGrade(String grade) {
+		this.grade = grade;
+	}
 
-    public BigDecimal getPrice() {
-        return price;
-    }
+	public BigDecimal getPrice() {
+		return price;
+	}
 
-    public void setPrice(BigDecimal price) {
-        this.price = price;
-    }
+	public void setPrice(BigDecimal price) {
+		this.price = price;
+	}
 
-    public String getStatus() {
-        return status;
-    }
+	public String getStatus() {
+		return status;
+	}
 
-    public void setStatus(String status) {
-        this.status = status;
-    }
+	public void setStatus(String status) {
+		this.status = status;
+	}
 
-    public Integer getMaxStudents() {
-        return maxStudents;
-    }
+	public Integer getMaxStudents() {
+		return maxStudents;
+	}
 
-    public void setMaxStudents(Integer maxStudents) {
-        this.maxStudents = maxStudents;
-    }
+	public void setMaxStudents(Integer maxStudents) {
+		this.maxStudents = maxStudents;
+	}
 
-    public Integer getSessionsPerWeek() {
-        return sessionsPerWeek;
-    }
+	public Integer getSessionsPerWeek() {
+		return sessionsPerWeek;
+	}
 
-    public void setSessionsPerWeek(Integer sessionsPerWeek) {
-        this.sessionsPerWeek = sessionsPerWeek;
-    }
+	public void setSessionsPerWeek(Integer sessionsPerWeek) {
+		this.sessionsPerWeek = sessionsPerWeek;
+	}
 
-    public String getImage() {
-        return image;
-    }
+	public String getImage() {
+		return image;
+	}
 
-    public void setImage(String image) {
-        this.image = image;
-    }
+	public void setImage(String image) {
+		this.image = image;
+	}
 
-    public String getNote() {
-        return note;
-    }
+	public String getNote() {
+		return note;
+	}
 
-    public void setNote(String note) {
-        this.note = note;
-    }
+	public void setNote(String note) {
+		this.note = note;
+	}
 
-    public Long getCurrentStudents() {
-        return currentStudents;
-    }
+	public Long getCurrentStudents() {
+		return currentStudents;
+	}
 
-    public void setCurrentStudents(Long currentStudents) {
-        this.currentStudents = currentStudents;
-    }
+	public void setCurrentStudents(Long currentStudents) {
+		this.currentStudents = currentStudents;
+	}
 
-    public List<TeacherSubjectDTO> getTeacherSubjects() {
-        return teacherSubjects;
-    }
+	public List<TeacherSubjectDTO> getTeacherSubjects() {
+		return teacherSubjects;
+	}
 
-    public void setTeacherSubjects(List<TeacherSubjectDTO> teacherSubjects) {
-        this.teacherSubjects = teacherSubjects;
-    }
+	public void setTeacherSubjects(List<TeacherSubjectDTO> teacherSubjects) {
+		this.teacherSubjects = teacherSubjects;
+	}
 
 	public SubjectTypeDTO getSubjectType() {
 		return subjectType;
@@ -136,5 +141,29 @@ public class SubjectDTO {
 	public void setSubjectType(SubjectTypeDTO subjectType) {
 		this.subjectType = subjectType;
 	}
-    
+
+	public BillingType getBillingType() {
+		return billingType;
+	}
+
+	public void setBillingType(BillingType billingType) {
+		this.billingType = billingType;
+	}
+
+	public PaymentPlanType getPaymentPlanType() {
+		return paymentPlanType;
+	}
+
+	public void setPaymentPlanType(PaymentPlanType paymentPlanType) {
+		this.paymentPlanType = paymentPlanType;
+	}
+
+	public Integer getInstallmentCount() {
+		return installmentCount;
+	}
+
+	public void setInstallmentCount(Integer installmentCount) {
+		this.installmentCount = installmentCount;
+	}
+
 }

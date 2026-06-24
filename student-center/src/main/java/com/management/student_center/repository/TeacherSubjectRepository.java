@@ -34,4 +34,5 @@ public interface TeacherSubjectRepository extends JpaRepository<TeacherSubject, 
 
 	List<TeacherSubject> findAllBySubjectId(Long subjectId);
 
+	
 }

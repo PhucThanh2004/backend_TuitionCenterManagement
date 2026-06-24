@@ -65,5 +65,7 @@
 	    // Đếm số buổi trễ
 	    @Query("SELECT COUNT(a) FROM AttendanceStudent a WHERE a.student.id = :studentId AND a.session.subject.id = :subjectId AND a.status = 'late'")
 	    Integer countLateByStudentAndSubject(@Param("studentId") Long studentId, @Param("subjectId") Long subjectId);
+	    
+	    
 	
 	}

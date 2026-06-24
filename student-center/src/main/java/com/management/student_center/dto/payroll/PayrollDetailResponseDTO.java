@@ -3,6 +3,7 @@ package com.management.student_center.dto.payroll;
 import com.management.student_center.enums.TeacherPaymentStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public class PayrollDetailResponseDTO {
@@ -26,6 +27,14 @@ public class PayrollDetailResponseDTO {
     private LocalDate paymentDate;
 
     private List<PayrollSessionDetailDTO> details;
+    
+    private Integer revisionNo;
+
+    private BigDecimal previousAmount;
+
+    private String lastAdjustmentReason;
+
+    private LocalDateTime adjustedAt;
 
 	public Integer getPaymentId() {
 		return paymentId;
@@ -106,4 +115,37 @@ public class PayrollDetailResponseDTO {
 	public void setDetails(List<PayrollSessionDetailDTO> details) {
 		this.details = details;
 	}
+
+	public Integer getRevisionNo() {
+		return revisionNo;
+	}
+
+	public void setRevisionNo(Integer revisionNo) {
+		this.revisionNo = revisionNo;
+	}
+
+	public BigDecimal getPreviousAmount() {
+		return previousAmount;
+	}
+
+	public void setPreviousAmount(BigDecimal previousAmount) {
+		this.previousAmount = previousAmount;
+	}
+
+	public String getLastAdjustmentReason() {
+		return lastAdjustmentReason;
+	}
+
+	public void setLastAdjustmentReason(String lastAdjustmentReason) {
+		this.lastAdjustmentReason = lastAdjustmentReason;
+	}
+
+	public LocalDateTime getAdjustedAt() {
+		return adjustedAt;
+	}
+
+	public void setAdjustedAt(LocalDateTime adjustedAt) {
+		this.adjustedAt = adjustedAt;
+	}
+	
 }

@@ -1,5 +1,6 @@
 package com.management.student_center.dto.leave;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 
@@ -15,6 +16,7 @@ public class LeaveAffectedSessionDTO {
     
     private Long replacementTeacherId;
     private String replacementTeacherName;
+    private BigDecimal replacementSalary; 
     private String className;
     private String subjectName;
     private String roomName;
@@ -140,4 +142,12 @@ public class LeaveAffectedSessionDTO {
 	public void setReplacementTeacherName(String replacementTeacherName) {
 	    this.replacementTeacherName = replacementTeacherName;
 	}
+	public BigDecimal getReplacementSalary() {
+		return replacementSalary;
+	}
+	public void setReplacementSalary(BigDecimal replacementSalary) {
+		this.replacementSalary = replacementSalary;
+	}
+	
+	
 }

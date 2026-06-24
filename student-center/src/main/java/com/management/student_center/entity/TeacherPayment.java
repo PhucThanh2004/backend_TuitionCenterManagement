@@ -57,6 +57,18 @@ public class TeacherPayment {
 	private LocalDateTime finalizedAt;
 
 	private Integer finalizedBy;
+	
+	@Column(name = "revision_no", nullable = false)
+	private Integer revisionNo = 1;
+
+	@Column(name = "previous_amount", precision = 19, scale = 2)
+	private BigDecimal previousAmount;
+
+	@Column(name = "last_adjustment_reason", columnDefinition = "TEXT")
+	private String lastAdjustmentReason;
+
+	@Column(name = "adjusted_at")
+	private LocalDateTime adjustedAt;
 
 	@OneToMany(mappedBy = "paymentInfo", cascade = CascadeType.ALL, orphanRemoval = true)
 	@JsonIgnore
@@ -222,4 +234,38 @@ public class TeacherPayment {
 	public LocalDateTime getUpdatedAt() {
 		return updatedAt;
 	}
+
+	public Integer getRevisionNo() {
+		return revisionNo;
+	}
+
+	public void setRevisionNo(Integer revisionNo) {
+		this.revisionNo = revisionNo;
+	}
+
+	public BigDecimal getPreviousAmount() {
+		return previousAmount;
+	}
+
+	public void setPreviousAmount(BigDecimal previousAmount) {
+		this.previousAmount = previousAmount;
+	}
+
+	public String getLastAdjustmentReason() {
+		return lastAdjustmentReason;
+	}
+
+	public void setLastAdjustmentReason(String lastAdjustmentReason) {
+		this.lastAdjustmentReason = lastAdjustmentReason;
+	}
+
+	public LocalDateTime getAdjustedAt() {
+		return adjustedAt;
+	}
+
+	public void setAdjustedAt(LocalDateTime adjustedAt) {
+		this.adjustedAt = adjustedAt;
+	}
+	
+	
 }

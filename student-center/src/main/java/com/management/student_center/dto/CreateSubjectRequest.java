@@ -1,7 +1,8 @@
 package com.management.student_center.dto;
 
 import org.springframework.web.multipart.MultipartFile;
-
+import com.management.student_center.enums.BillingType;
+import com.management.student_center.enums.PaymentPlanType;
 import lombok.Data;
 
 @Data
@@ -19,94 +20,50 @@ public class CreateSubjectRequest {
 
     private MultipartFile image;
     private String imageUrl;
-
-	public String getName() {
-		return name;
-	}
-
-	public void setName(String name) {
-		this.name = name;
-	}
-
-	public String getGrade() {
-		return grade;
-	}
-
-	public void setGrade(String grade) {
-		this.grade = grade;
-	}
-
-	public Double getPrice() {
-		return price;
-	}
-
-	public void setPrice(Double price) {
-		this.price = price;
-	}
-
-	public String getStatus() {
-		return status;
-	}
-
-	public void setStatus(String status) {
-		this.status = status;
-	}
-
-	public String getMaxStudents() {
-		return maxStudents;
-	}
-
-	public void setMaxStudents(String maxStudents) {
-		this.maxStudents = maxStudents;
-	}
-
-	public String getSessionsPerWeek() {
-		return sessionsPerWeek;
-	}
-
-	public void setSessionsPerWeek(String sessionsPerWeek) {
-		this.sessionsPerWeek = sessionsPerWeek;
-	}
-
-	public String getNote() {
-		return note;
-	}
-
-	public void setNote(String note) {
-		this.note = note;
-	}
-
-	public Long getTeacherId() {
-		return teacherId;
-	}
-
-	public void setTeacherId(Long teacherId) {
-		this.teacherId = teacherId;
-	}
-
-	public MultipartFile getImage() {
-		return image;
-	}
-
-	public void setImage(MultipartFile image) {
-		this.image = image;
-	}
-	
-	public String getImageUrl() {
-	    return imageUrl;
-	}
-
-	public void setImageUrl(String imageUrl) {
-	    this.imageUrl = imageUrl;
-	}
-
-	public Long getSubjectTypeId() {
-		return subjectTypeId;
-	}
-
-	public void setSubjectTypeId(Long subjectTypeId) {
-		this.subjectTypeId = subjectTypeId;
-	}
     
-}
+    private BillingType billingType;
+    private PaymentPlanType paymentPlanType;
+    private Integer installmentCount;
 
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+
+    public String getGrade() { return grade; }
+    public void setGrade(String grade) { this.grade = grade; }
+
+    public Double getPrice() { return price; }
+    public void setPrice(Double price) { this.price = price; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
+    public String getMaxStudents() { return maxStudents; }
+    public void setMaxStudents(String maxStudents) { this.maxStudents = maxStudents; }
+
+    public String getSessionsPerWeek() { return sessionsPerWeek; }
+    public void setSessionsPerWeek(String sessionsPerWeek) { this.sessionsPerWeek = sessionsPerWeek; }
+
+    public String getNote() { return note; }
+    public void setNote(String note) { this.note = note; }
+
+    public Long getTeacherId() { return teacherId; }
+    public void setTeacherId(Long teacherId) { this.teacherId = teacherId; }
+
+    public MultipartFile getImage() { return image; }
+    public void setImage(MultipartFile image) { this.image = image; }
+    
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+
+    public Long getSubjectTypeId() { return subjectTypeId; }
+    public void setSubjectTypeId(Long subjectTypeId) { this.subjectTypeId = subjectTypeId; }
+    
+    public BillingType getBillingType() { return billingType; }
+    public void setBillingType(BillingType billingType) { this.billingType = billingType; }
+    
+    public PaymentPlanType getPaymentPlanType() { return paymentPlanType; }
+    public void setPaymentPlanType(PaymentPlanType paymentPlanType) { this.paymentPlanType = paymentPlanType; }
+    
+    public Integer getInstallmentCount() { return installmentCount; }
+    public void setInstallmentCount(Integer installmentCount) { this.installmentCount = installmentCount; }
+}

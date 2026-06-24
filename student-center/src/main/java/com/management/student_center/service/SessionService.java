@@ -33,6 +33,8 @@ import com.management.student_center.repository.SessionRepository;
 import com.management.student_center.repository.TeacherLeaveRepository;
 import com.management.student_center.repository.TeacherRepository;
 
+import jakarta.transaction.Transactional;
+
 @Service
 public class SessionService {
 
@@ -108,7 +110,7 @@ public class SessionService {
 
         // 2. REJECTED / CANCELLED
         if ("REJECTED".equals(leave.getStatus()) ||
-            "CANCELLED".equals(leave.getStatus())) {
+            "CANCELED".equals(leave.getStatus())) {
             return new DailySessionDTO.TeacherLeaveInfo("NONE", null, null);
         }
 
@@ -206,7 +208,47 @@ public class SessionService {
         // Tính tổng thời gian
         long totalMinutes = java.time.Duration.between(session.getStartTime(), session.getEndTime()).toMinutes();
         
-        // Lấy thông tin giáo viên
+        // ========== 1. XỬ LÝ NỘI DUNG BUỔI HỌC ==========
+        Boolean isFollowingPlan = session.getIsFollowPlan() != null ? session.getIsFollowPlan() : true;
+        String displayTopic = null;
+        String displayContent = null;
+        String displayHomework = null;
+        String plannedTopic = null;
+        Long plannedSessionDetailId = null;
+        String deviationReason = session.getDeviationReason();
+        String noteForNextSession = session.getNoteForNextSession();
+        
+        if (isFollowingPlan && session.getPlannedSessionDetail() != null) {
+            // Dạy đúng kế hoạch: hiển thị nội dung từ planned session detail
+            SessionDetail plan = session.getPlannedSessionDetail();
+            displayTopic = plan.getTopic();
+            displayContent = plan.getContent();
+            displayHomework = plan.getHomework();
+            plannedSessionDetailId = plan.getId();
+            plannedTopic = plan.getTopic();
+        } else if (!isFollowingPlan) {
+            // Dạy lệch: hiển thị nội dung thực tế
+            displayTopic = session.getActualTopic();
+            displayContent = session.getActualContent();
+            displayHomework = session.getActualHomework();
+            
+            // Vẫn hiển thị kế hoạch để so sánh (nếu có)
+            if (session.getPlannedSessionDetail() != null) {
+                plannedTopic = session.getPlannedSessionDetail().getTopic();
+                plannedSessionDetailId = session.getPlannedSessionDetail().getId();
+            }
+        } else if (session.getPlannedSessionDetail() != null) {
+            // Trường hợp isFollowingPlan = null, mặc định hiển thị kế hoạch
+            SessionDetail plan = session.getPlannedSessionDetail();
+            displayTopic = plan.getTopic();
+            displayContent = plan.getContent();
+            displayHomework = plan.getHomework();
+            plannedSessionDetailId = plan.getId();
+            plannedTopic = plan.getTopic();
+            isFollowingPlan = true;
+        }
+        
+        // ========== 2. LẤY THÔNG TIN GIÁO VIÊN ==========
         SessionDetailDTO.TeacherInfo teacherInfo = null;
         SessionDetailDTO.TeacherAttendanceInfo teacherAttendanceInfo = null;
         
@@ -240,7 +282,7 @@ public class SessionService {
             }
         }
         
-        // Lấy thông tin phòng học
+        // ========== 3. LẤY THÔNG TIN PHÒNG HỌC ==========
         SessionDetailDTO.RoomInfo roomInfo = null;
         if (session.getRoom() != null) {
             roomInfo = new SessionDetailDTO.RoomInfo(
@@ -250,10 +292,9 @@ public class SessionService {
             );
         }
         
-        // Lấy danh sách học sinh ĐANG ACTIVE tại thời điểm session diễn ra
+        // ========== 4. LẤY DANH SÁCH HỌC SINH ==========
         List<SessionDetailDTO.StudentAttendanceInfo> studentAttendanceInfos = new ArrayList<>();
         
-        // Lọc học sinh đăng ký môn này và còn hiệu lực tại thời điểm session
         if (subject.getStudentSubjects() != null) {
             for (StudentSubject studentSubject : subject.getStudentSubjects()) {
                 LocalDate enrollmentDate = studentSubject.getEnrollmentDate();
@@ -264,7 +305,7 @@ public class SessionService {
                                   (deletedAt == null || sessionDate.isBefore(deletedAt));
                 
                 if (!isActive) {
-                    continue; // Bỏ qua học sinh không active
+                    continue;
                 }
                 
                 Student student = studentSubject.getStudent();
@@ -273,7 +314,6 @@ public class SessionService {
                 String attendanceStatus = null;
                 String attendanceNote = null;
                 
-                // Tìm điểm danh của học sinh này trong session
                 if (session.getAttendanceStudents() != null) {
                     for (AttendanceStudent attendance : session.getAttendanceStudents()) {
                         if (attendance.getStudent().getId().equals(student.getId())) {
@@ -297,19 +337,21 @@ public class SessionService {
             }
         }
         
-        // Lấy tên lớp học (nếu có schedule)
+        // ========== 5. LẤY TÊN LỚP HỌC ==========
         String className = null;
         if (session.getSchedule() != null) {
             className = session.getSchedule().getClass().getName();
         }
         
-        // Lấy slug từ subjectType
+        // ========== 6. LẤY SLUG ==========
         String subjectSlug = null;
         if (subject.getSubjectType() != null) {
-            subjectSlug = subject.getSubjectType().getName() + "-" + subject.getSubjectType().getAcademicLevel().getName();
+            subjectSlug = subject.getSubjectType().getName() + "-" + 
+                          subject.getSubjectType().getAcademicLevel().getName();
         }
         
-        return new SessionDetailDTO(
+        // ========== 7. TẠO DTO ==========
+        SessionDetailDTO dto = new SessionDetailDTO(
                 session.getId(),
                 resolveStatus(session),
                 className,
@@ -324,33 +366,66 @@ public class SessionService {
                 studentAttendanceInfos,
                 teacherAttendanceInfo
         );
+        
+        // ========== 8. SET CÁC FIELD NỘI DUNG BUỔI HỌC ==========
+        dto.setIsFollowingPlan(isFollowingPlan);
+        dto.setDisplayTopic(displayTopic);
+        dto.setDisplayContent(displayContent);
+        dto.setDisplayHomework(displayHomework);
+        dto.setPlannedTopic(plannedTopic);
+        dto.setPlannedSessionDetailId(plannedSessionDetailId);
+        dto.setDeviationReason(deviationReason);
+        dto.setNoteForNextSession(noteForNextSession);
+        
+        return dto;
     }
-    
+
+        
+    @Transactional
     public void updateActualContent(Long sessionId, SessionActualContentDTO request) {
         Session session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy buổi học với id: " + sessionId));
+        Boolean isFollowPlan = request.getIsFollowPlan();
+        if (isFollowPlan == null) {
+            isFollowPlan = true;
+        }
         
-        session.setIsFollowPlan(request.getIsFollowPlan());
+        // ✅ Set vào session
+        session.setIsFollowPlan(isFollowPlan);
         
-        if (request.getIsFollowPlan()) {
-            // Nếu dạy đúng kế hoạch, chỉ cần set planned session detail
-            if (request.getPlannedSessionDetailId() != null) {
-                SessionDetail plannedDetail = sessionDetailRepository.findById(request.getPlannedSessionDetailId())
-                        .orElseThrow(() -> new RuntimeException("Không tìm thấy kế hoạch"));
+        if (isFollowPlan) {
+            // Dạy đúng kế hoạch
+            System.out.println("Dạy đúng kế hoạch");
+            
+            // ✅ QUAN TRỌNG: Set planned session detail
+            Long plannedDetailId = request.getPlannedSessionDetailId();
+            if (plannedDetailId != null) {
+                SessionDetail plannedDetail = sessionDetailRepository.findById(plannedDetailId)
+                        .orElseThrow(() -> new RuntimeException("Không tìm thấy kế hoạch với id: " + plannedDetailId));
                 session.setPlannedSessionDetail(plannedDetail);
+                System.out.println("Set plannedSessionDetailId: " + plannedDetailId);
+            } else {
+                System.out.println("Warning: plannedSessionDetailId is null!");
             }
+            
             // Clear các field thực tế
             session.setActualTopic(null);
             session.setActualContent(null);
             session.setActualHomework(null);
             session.setDeviationReason(null);
+            session.setNoteForNextSession(null);
         } else {
-            // Nếu dạy lệch, cập nhật đầy đủ thông tin thực tế
-            if (request.getPlannedSessionDetailId() != null) {
-                SessionDetail plannedDetail = sessionDetailRepository.findById(request.getPlannedSessionDetailId())
-                        .orElseThrow(() -> new RuntimeException("Không tìm thấy kế hoạch"));
+            // Dạy lệch - cập nhật thông tin thực tế
+            System.out.println("Dạy lệch kế hoạch");
+            
+            // Có thể vẫn giữ planned session detail để tham khảo
+            Long plannedDetailId = request.getPlannedSessionDetailId();
+            if (plannedDetailId != null) {
+                SessionDetail plannedDetail = sessionDetailRepository.findById(plannedDetailId)
+                        .orElseThrow(() -> new RuntimeException("Không tìm thấy kế hoạch với id: " + plannedDetailId));
                 session.setPlannedSessionDetail(plannedDetail);
             }
+            
             session.setActualTopic(request.getActualTopic());
             session.setActualContent(request.getActualContent());
             session.setActualHomework(request.getActualHomework());
@@ -358,7 +433,10 @@ public class SessionService {
             session.setNoteForNextSession(request.getNoteForNextSession());
         }
         
-        sessionRepository.save(session);
+        Session saved = sessionRepository.save(session);
+        System.out.println("Saved session ID: " + saved.getId());
+        System.out.println("Final plannedSessionDetailId: " + 
+            (saved.getPlannedSessionDetail() != null ? saved.getPlannedSessionDetail().getId() : "null"));
     }
 
     public SessionContentDTO getSessionContent(Long sessionId) {

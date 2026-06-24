@@ -44,6 +44,10 @@ public class ActivityLog {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
+    // Đánh dấu đã đọc hay chưa
+    @Column(name = "is_read", nullable = false)
+    private Boolean isRead = false;
+
     // Constructor mặc định
     public ActivityLog() {}
 
@@ -55,6 +59,7 @@ public class ActivityLog {
         this.targetId = targetId;
         this.description = description;
         this.meta = meta;
+        this.isRead = false; // Mặc định chưa đọc
     }
 
     // Getter và Setter
@@ -120,5 +125,13 @@ public class ActivityLog {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Boolean getIsRead() {
+        return isRead;
+    }
+
+    public void setIsRead(Boolean isRead) {
+        this.isRead = isRead;
     }
 }

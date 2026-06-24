@@ -25,6 +25,8 @@ import com.management.student_center.entity.TeacherSubject;
 import com.management.student_center.entity.User;
 import com.management.student_center.enums.ActivityActionType;
 import com.management.student_center.enums.ActivityTargetType;
+import com.management.student_center.enums.BillingType;
+import com.management.student_center.enums.PaymentPlanType;
 
 import java.math.BigDecimal;
 import org.springframework.web.multipart.MultipartFile;
@@ -240,155 +242,204 @@ public class SubjectService {
 	// ------------------- UPDATE SUBJECT -------------------
 	@Transactional
 	public void updateSubject(Long id, UpdateSubjectRequest updatedData) {
-	    User currentUser = currentUserService.getCurrentUser();
-	    
-	    // 1. Lấy môn học
-	    Subject subject = subjectRepository.findById(id)
-	            .orElseThrow(() -> new RuntimeException("Không tìm thấy môn học"));
+		User currentUser = currentUserService.getCurrentUser();
 
-	    // LƯU LẠI THÔNG TIN CŨ ĐỂ GHI LOG
-	    String oldName = subject.getName();
-	    String oldGrade = subject.getGrade();
-	    BigDecimal oldPrice = subject.getPrice();
-	    String oldStatus = subject.getStatus();
-	    Integer oldMaxStudents = subject.getMaxStudents();
-	    Integer oldSessionsPerWeek = subject.getSessionsPerWeek();
+		// 1. Lấy môn học
+		Subject subject = subjectRepository.findById(id)
+				.orElseThrow(() -> new RuntimeException("Không tìm thấy môn học"));
 
-	    // Lấy thông tin giáo viên cũ (TRƯỚC KHI CẬP NHẬT)
-	    TeacherSubject existingTS = teacherSubjectRepository.findBySubjectId(id).orElse(null);
-	    Long oldTeacherId = existingTS != null && existingTS.getTeacher() != null ? existingTS.getTeacher().getId() : null;
-	    String oldTeacherName = existingTS != null && existingTS.getTeacher() != null 
-	            ? existingTS.getTeacher().getUserInfo().getFullName() 
-	            : "chưa có";
+		// LƯU LẠI THÔNG TIN CŨ ĐỂ GHI LOG
+		String oldName = subject.getName();
+		String oldGrade = subject.getGrade();
+		BigDecimal oldPrice = subject.getPrice();
+		String oldStatus = subject.getStatus();
+		Integer oldMaxStudents = subject.getMaxStudents();
+		Integer oldSessionsPerWeek = subject.getSessionsPerWeek();
 
-	    // ====== CHECK ĐỔI GIÁO VIÊN KHI CÒN NỢ LƯƠNG ======
-	    Long newTeacherId = updatedData.getTeacherId();
-	    Long currentTeacherId = existingTS != null ? existingTS.getTeacher().getId() : null;
-	    boolean isChangingTeacher = !Objects.equals(currentTeacherId, newTeacherId);
+		// Lưu thông tin billing cũ
+		BillingType oldBillingType = subject.getBillingType();
+		PaymentPlanType oldPaymentPlanType = subject.getPaymentPlanType();
+		Integer oldInstallmentCount = subject.getInstallmentCount();
 
-	    if (isChangingTeacher && existingTS != null) {
-	        long unpaidSalary = teacherPaymentDetailRepository.countUnpaidBySubject(id);
-	        if (unpaidSalary > 0) {
-	            throw new IllegalStateException("TEACHER_UNPAID_CHANGE");
-	        }
-	    }
-	    
-	    // 2. Cập nhật thông tin môn học
-	    subject.setName(updatedData.getName());
-	    subject.setGrade(updatedData.getGrade());
+		// Lấy thông tin giáo viên cũ
+		TeacherSubject existingTS = teacherSubjectRepository.findBySubjectId(id).orElse(null);
+		Long oldTeacherId = existingTS != null && existingTS.getTeacher() != null ? existingTS.getTeacher().getId()
+				: null;
+		String oldTeacherName = existingTS != null && existingTS.getTeacher() != null
+				? existingTS.getTeacher().getUserInfo().getFullName()
+				: "chưa có";
 
-	    if (updatedData.getPrice() != null) {
-	        subject.setPrice(BigDecimal.valueOf(updatedData.getPrice()));
-	    }
+		// ====== CHECK ĐỔI GIÁO VIÊN KHI CÒN NỢ LƯƠNG ======
+		Long newTeacherId = updatedData.getTeacherId();
+		Long currentTeacherId = existingTS != null ? existingTS.getTeacher().getId() : null;
+		boolean isChangingTeacher = !Objects.equals(currentTeacherId, newTeacherId);
 
-	    subject.setStatus(updatedData.getStatus());
-	    subject.setMaxStudents(updatedData.getMaxStudents());
-	    subject.setSessionsPerWeek(updatedData.getSessionsPerWeek());
-	    subject.setNote(updatedData.getNote());
+		if (isChangingTeacher && existingTS != null) {
+			long unpaidSalary = teacherPaymentDetailRepository.countUnpaidBySubject(id);
+			if (unpaidSalary > 0) {
+				throw new IllegalStateException("TEACHER_UNPAID_CHANGE");
+			}
+		}
 
-	    if (updatedData.getSubjectTypeId() != null) {
-	        SubjectType subjectType = subjectTypeRepository.findById(updatedData.getSubjectTypeId())
-	                .orElseThrow(() -> new RuntimeException("Không tìm thấy loại môn học"));
-	        subject.setSubjectType(subjectType);
-	    }
+		// 2. Cập nhật thông tin môn học
+		subject.setName(updatedData.getName());
+		subject.setGrade(updatedData.getGrade());
 
-	    subjectRepository.save(subject);
+		if (updatedData.getPrice() != null) {
+			subject.setPrice(BigDecimal.valueOf(updatedData.getPrice()));
+		}
 
-	    // 3. Chuẩn hóa teacherId (CẬP NHẬT SAU KHI ĐÃ LƯU oldTeacherName)
-	    Long teacherIdNorm = updatedData.getTeacherId();
+		subject.setStatus(updatedData.getStatus());
+		subject.setMaxStudents(updatedData.getMaxStudents());
+		subject.setSessionsPerWeek(updatedData.getSessionsPerWeek());
+		subject.setNote(updatedData.getNote());
 
-	    if (existingTS != null) {
-	        if (teacherIdNorm == null) {
-	            // Nếu bỏ giáo viên
-	            teacherSubjectRepository.delete(existingTS);
-	        } else {
-	            // Cập nhật giáo viên
-	            Teacher teacher = teacherRepository.findById(teacherIdNorm)
-	                    .orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên"));
-	            existingTS.setTeacher(teacher);
+		// === THÊM PHẦN CẬP NHẬT BILLING ===
+		if (updatedData.getBillingType() != null) {
+			subject.setBillingType(updatedData.getBillingType());
+		}
 
-	            BigDecimal newSalary = updatedData.getSalaryRate() != null
-	                    ? BigDecimal.valueOf(updatedData.getSalaryRate())
-	                    : existingTS.getSalaryRate();
-	            existingTS.setSalaryRate(newSalary);
+		if (updatedData.getPaymentPlanType() != null) {
+			subject.setPaymentPlanType(updatedData.getPaymentPlanType());
+		}
 
-	            teacherSubjectRepository.save(existingTS);
-	        }
-	    } else {
-	        // Chưa có TeacherSubject nhưng có teacherId → tạo mới
-	        if (teacherIdNorm != null) {
-	            Teacher teacher = teacherRepository.findById(teacherIdNorm)
-	                    .orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên"));
-	            TeacherSubject ts = new TeacherSubject();
-	            ts.setSubject(subject);
-	            ts.setTeacher(teacher);
+		// Cập nhật installmentCount
+		if (updatedData.getPaymentPlanType() == PaymentPlanType.INSTALLMENT) {
+			if (updatedData.getInstallmentCount() != null) {
+				subject.setInstallmentCount(updatedData.getInstallmentCount());
+			} else if (subject.getInstallmentCount() == null) {
+				// Nếu là INSTALLMENT nhưng chưa có installmentCount, set default = 3
+				subject.setInstallmentCount(3);
+			}
+		} else {
+			// Nếu không phải INSTALLMENT, set null
+			subject.setInstallmentCount(null);
+		}
 
-	            BigDecimal newSalary = updatedData.getSalaryRate() != null
-	                    ? BigDecimal.valueOf(updatedData.getSalaryRate())
-	                    : BigDecimal.ZERO;
-	            ts.setSalaryRate(newSalary);
+		if (updatedData.getSubjectTypeId() != null) {
+			SubjectType subjectType = subjectTypeRepository.findById(updatedData.getSubjectTypeId())
+					.orElseThrow(() -> new RuntimeException("Không tìm thấy loại môn học"));
+			subject.setSubjectType(subjectType);
+		}
 
-	            teacherSubjectRepository.save(ts);
-	        }
-	    }
-	    
-	 // 4. LOG ACTIVITY
-	    List<String> changes = new ArrayList<>();
+		subjectRepository.save(subject);
 
-	    if (!Objects.equals(oldName, updatedData.getName())) {
-	        changes.add(String.format("tên từ \"%s\" thành \"%s\"", oldName, updatedData.getName()));
-	    }
-	    if (!Objects.equals(oldGrade, updatedData.getGrade())) {
-	        changes.add(String.format("khối từ \"%s\" thành \"%s\"", oldGrade, updatedData.getGrade()));
-	    }
-	    if (updatedData.getPrice() != null && (oldPrice == null || oldPrice.compareTo(BigDecimal.valueOf(updatedData.getPrice())) != 0)) {
-	        changes.add(String.format("giá từ %s thành %s", oldPrice, updatedData.getPrice()));
-	    }
-	    if (!Objects.equals(oldStatus, updatedData.getStatus())) {
-	        changes.add(String.format("trạng thái từ \"%s\" thành \"%s\"", oldStatus, updatedData.getStatus()));
-	    }
-	    if (!Objects.equals(oldMaxStudents, updatedData.getMaxStudents())) {
-	        changes.add(String.format("sỉ số từ %d thành %d", oldMaxStudents, updatedData.getMaxStudents()));
-	    }
-	    if (!Objects.equals(oldSessionsPerWeek, updatedData.getSessionsPerWeek())) {
-	        changes.add(String.format("buổi/tuần từ %d thành %d", oldSessionsPerWeek, updatedData.getSessionsPerWeek()));
-	    }
-	    if (isChangingTeacher) {
-	        // Lấy tên giáo viên mới (SAU KHI CẬP NHẬT)
-	        String newTeacherName;
-	        if (teacherIdNorm == null) {
-	            newTeacherName = "đã xóa";
-	        } else {
-	            newTeacherName = teacherRepository.findById(teacherIdNorm)
-	                    .map(t -> t.getUserInfo().getFullName())
-	                    .orElse("không xác định");
-	        }
-	        changes.add(String.format("giáo viên từ \"%s\" thành \"%s\"", oldTeacherName, newTeacherName));
-	    }
+		// 3. Chuẩn hóa teacherId (CẬP NHẬT SAU KHI ĐÃ LƯU oldTeacherName)
+		Long teacherIdNorm = updatedData.getTeacherId();
 
-	    String description;
-	    if (changes.isEmpty()) {
-	        description = String.format("đã cập nhật môn học %s - không có thay đổi", subject.getName());
-	    } else {
-	        description = String.format("đã cập nhật môn học %s: %s", subject.getName(), String.join(", ", changes));
-	    }
+		if (existingTS != null) {
+			if (teacherIdNorm == null) {
+				// Nếu bỏ giáo viên
+				teacherSubjectRepository.delete(existingTS);
+			} else {
+				// Cập nhật giáo viên
+				Teacher teacher = teacherRepository.findById(teacherIdNorm)
+						.orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên"));
+				existingTS.setTeacher(teacher);
 
-	    String meta = String.format(
-	        "{\"subjectId\":%d,\"oldValues\":{\"name\":\"%s\",\"grade\":\"%s\",\"price\":%s,\"status\":\"%s\",\"maxStudents\":%d,\"sessionsPerWeek\":%d,\"teacherId\":%s,\"teacherName\":\"%s\"},\"newValues\":{\"name\":\"%s\",\"grade\":\"%s\",\"price\":%s,\"status\":\"%s\",\"maxStudents\":%d,\"sessionsPerWeek\":%d,\"teacherId\":%s}}",
-	        id, 
-	        escapeJson(oldName), escapeJson(oldGrade), oldPrice != null ? oldPrice : "null", oldStatus,
-	        oldMaxStudents != null ? oldMaxStudents : 0, 
-	        oldSessionsPerWeek != null ? oldSessionsPerWeek : 0,
-	        oldTeacherId != null ? oldTeacherId : "null",
-	        escapeJson(oldTeacherName),
-	        escapeJson(updatedData.getName()), escapeJson(updatedData.getGrade()),
-	        updatedData.getPrice() != null ? updatedData.getPrice() : "null", 
-	        updatedData.getStatus(),
-	        updatedData.getMaxStudents() != null ? updatedData.getMaxStudents() : 0,
-	        updatedData.getSessionsPerWeek() != null ? updatedData.getSessionsPerWeek() : 0,
-	        teacherIdNorm != null ? teacherIdNorm : "null");
+				BigDecimal newSalary = updatedData.getSalaryRate() != null
+						? BigDecimal.valueOf(updatedData.getSalaryRate())
+						: existingTS.getSalaryRate();
+				existingTS.setSalaryRate(newSalary);
 
-	    activityLogService.log(currentUser, ActivityActionType.UPDATE, ActivityTargetType.SUBJECT, id, description, meta);
+				teacherSubjectRepository.save(existingTS);
+			}
+		} else {
+			// Chưa có TeacherSubject nhưng có teacherId → tạo mới
+			if (teacherIdNorm != null) {
+				Teacher teacher = teacherRepository.findById(teacherIdNorm)
+						.orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên"));
+				TeacherSubject ts = new TeacherSubject();
+				ts.setSubject(subject);
+				ts.setTeacher(teacher);
+
+				BigDecimal newSalary = updatedData.getSalaryRate() != null
+						? BigDecimal.valueOf(updatedData.getSalaryRate())
+						: BigDecimal.ZERO;
+				ts.setSalaryRate(newSalary);
+
+				teacherSubjectRepository.save(ts);
+			}
+		}
+
+		// 4. LOG ACTIVITY
+		List<String> changes = new ArrayList<>();
+
+		if (!Objects.equals(oldName, updatedData.getName())) {
+			changes.add(String.format("tên từ \"%s\" thành \"%s\"", oldName, updatedData.getName()));
+		}
+		if (!Objects.equals(oldGrade, updatedData.getGrade())) {
+			changes.add(String.format("khối từ \"%s\" thành \"%s\"", oldGrade, updatedData.getGrade()));
+		}
+		if (updatedData.getPrice() != null
+				&& (oldPrice == null || oldPrice.compareTo(BigDecimal.valueOf(updatedData.getPrice())) != 0)) {
+			changes.add(String.format("giá từ %s thành %s", oldPrice, updatedData.getPrice()));
+		}
+		if (!Objects.equals(oldStatus, updatedData.getStatus())) {
+			changes.add(String.format("trạng thái từ \"%s\" thành \"%s\"", oldStatus, updatedData.getStatus()));
+		}
+		if (!Objects.equals(oldMaxStudents, updatedData.getMaxStudents())) {
+			changes.add(String.format("sỉ số từ %d thành %d", oldMaxStudents, updatedData.getMaxStudents()));
+		}
+		if (!Objects.equals(oldSessionsPerWeek, updatedData.getSessionsPerWeek())) {
+			changes.add(
+					String.format("buổi/tuần từ %d thành %d", oldSessionsPerWeek, updatedData.getSessionsPerWeek()));
+		}
+
+		// === THÊM LOG CHO BILLING ===
+		if (!Objects.equals(oldBillingType, updatedData.getBillingType())) {
+			changes.add(String.format("hình thức thanh toán từ \"%s\" thành \"%s\"",
+					oldBillingType != null ? oldBillingType.name() : "null",
+					updatedData.getBillingType() != null ? updatedData.getBillingType().name() : "null"));
+		}
+
+		if (!Objects.equals(oldPaymentPlanType, updatedData.getPaymentPlanType())) {
+			changes.add(String.format("hình thức trả từ \"%s\" thành \"%s\"",
+					oldPaymentPlanType != null ? oldPaymentPlanType.name() : "null",
+					updatedData.getPaymentPlanType() != null ? updatedData.getPaymentPlanType().name() : "null"));
+		}
+
+		if (updatedData.getPaymentPlanType() == PaymentPlanType.INSTALLMENT
+				&& !Objects.equals(oldInstallmentCount, updatedData.getInstallmentCount())) {
+			changes.add(String.format("số kỳ từ %d thành %d", oldInstallmentCount, updatedData.getInstallmentCount()));
+		}
+
+		if (isChangingTeacher) {
+			String newTeacherName;
+			if (teacherIdNorm == null) {
+				newTeacherName = "đã xóa";
+			} else {
+				newTeacherName = teacherRepository.findById(teacherIdNorm).map(t -> t.getUserInfo().getFullName())
+						.orElse("không xác định");
+			}
+			changes.add(String.format("giáo viên từ \"%s\" thành \"%s\"", oldTeacherName, newTeacherName));
+		}
+
+		String description;
+		if (changes.isEmpty()) {
+			description = String.format("đã cập nhật môn học %s - không có thay đổi", subject.getName());
+		} else {
+			description = String.format("đã cập nhật môn học %s: %s", subject.getName(), String.join(", ", changes));
+		}
+
+		String meta = String.format(
+				"{\"subjectId\":%d,\"oldValues\":{\"name\":\"%s\",\"grade\":\"%s\",\"price\":%s,\"status\":\"%s\",\"maxStudents\":%d,\"sessionsPerWeek\":%d,\"teacherId\":%s,\"teacherName\":\"%s\",\"billingType\":\"%s\",\"paymentPlanType\":\"%s\",\"installmentCount\":%d},\"newValues\":{\"name\":\"%s\",\"grade\":\"%s\",\"price\":%s,\"status\":\"%s\",\"maxStudents\":%d,\"sessionsPerWeek\":%d,\"teacherId\":%s,\"billingType\":\"%s\",\"paymentPlanType\":\"%s\",\"installmentCount\":%d}}",
+				id, escapeJson(oldName), escapeJson(oldGrade), oldPrice != null ? oldPrice : "null", oldStatus,
+				oldMaxStudents != null ? oldMaxStudents : 0, oldSessionsPerWeek != null ? oldSessionsPerWeek : 0,
+				oldTeacherId != null ? oldTeacherId : "null", escapeJson(oldTeacherName),
+				oldBillingType != null ? oldBillingType.name() : "null",
+				oldPaymentPlanType != null ? oldPaymentPlanType.name() : "null",
+				oldInstallmentCount != null ? oldInstallmentCount : 0, escapeJson(updatedData.getName()),
+				escapeJson(updatedData.getGrade()), updatedData.getPrice() != null ? updatedData.getPrice() : "null",
+				updatedData.getStatus(), updatedData.getMaxStudents() != null ? updatedData.getMaxStudents() : 0,
+				updatedData.getSessionsPerWeek() != null ? updatedData.getSessionsPerWeek() : 0,
+				teacherIdNorm != null ? teacherIdNorm : "null",
+				updatedData.getBillingType() != null ? updatedData.getBillingType().name() : "null",
+				updatedData.getPaymentPlanType() != null ? updatedData.getPaymentPlanType().name() : "null",
+				updatedData.getInstallmentCount() != null ? updatedData.getInstallmentCount() : 0);
+
+		activityLogService.log(currentUser, ActivityActionType.UPDATE, ActivityTargetType.SUBJECT, id, description,
+				meta);
 	}
 
 	@Transactional
@@ -424,8 +475,30 @@ public class SubjectService {
 
 		subject.setMaxStudents(maxStudents);
 		subject.setSessionsPerWeek(sessionsPerWeek);
-
 		subject.setNote(request.getNote());
+
+		// === THÊM PHẦN BILLING TYPE ===
+		// Set billingType
+		if (request.getBillingType() != null) {
+			subject.setBillingType(request.getBillingType());
+		} else {
+			// Set default nếu không có
+			subject.setBillingType(BillingType.PER_HOUR);
+		}
+
+		// Set paymentPlanType
+		if (request.getPaymentPlanType() != null) {
+			subject.setPaymentPlanType(request.getPaymentPlanType());
+		}
+
+		// Set installmentCount (chỉ khi paymentPlanType = INSTALLMENT)
+		if (request.getInstallmentCount() != null && request.getPaymentPlanType() == PaymentPlanType.INSTALLMENT) {
+			subject.setInstallmentCount(request.getInstallmentCount());
+		} else if (request.getPaymentPlanType() == PaymentPlanType.INSTALLMENT
+				&& request.getInstallmentCount() == null) {
+			// Nếu là INSTALLMENT nhưng không có installmentCount, set default = 3
+			subject.setInstallmentCount(3);
+		}
 
 		// ----------- LẤY FILE TRONG DTO -----------
 		MultipartFile file = request.getImage();
@@ -433,7 +506,6 @@ public class SubjectService {
 
 		// Ưu tiên FILE nếu có
 		if (file != null && !file.isEmpty()) {
-
 			String originalName = file.getOriginalFilename();
 			String ext = "";
 
@@ -450,12 +522,9 @@ public class SubjectService {
 			}
 
 			Path filePath = uploadDir.resolve(fileName);
-
 			Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-
 			subject.setImage("/uploads/subjects/" + fileName);
 		}
-
 		// Nếu KHÔNG có file → dùng URL
 		else if (imageUrl != null && !imageUrl.trim().isEmpty()) {
 			subject.setImage(imageUrl.trim());
@@ -463,16 +532,15 @@ public class SubjectService {
 
 		if (request.getSubjectTypeId() != null) {
 			SubjectType subjectType = subjectTypeRepository.findById(request.getSubjectTypeId())
-					.orElseThrow(() -> new RuntimeException("Không tìm thấy môn học"));
-
+					.orElseThrow(() -> new RuntimeException("Không tìm thấy loại môn học"));
 			subject.setSubjectType(subjectType);
 		}
+
 		// --- LƯU SUBJECT ---
 		subjectRepository.save(subject);
 
 		// --- TẠO TEACHER-SUBJECT ---
 		if (request.getTeacherId() != null) {
-
 			Teacher teacher = teacherRepository.findById(request.getTeacherId())
 					.orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên"));
 
@@ -487,9 +555,12 @@ public class SubjectService {
 		// LOG ACTIVITY: CREATE
 		String description = String.format("đã tạo môn học mới: %s (Khối %s)", subject.getName(), subject.getGrade());
 		String meta = String.format(
-				"{\"subjectId\":%d,\"name\":\"%s\",\"grade\":\"%s\",\"price\":%s,\"maxStudents\":%d}", subject.getId(),
-				escapeJson(subject.getName()), subject.getGrade(),
-				subject.getPrice() != null ? subject.getPrice() : "null", subject.getMaxStudents());
+				"{\"subjectId\":%d,\"name\":\"%s\",\"grade\":\"%s\",\"price\":%s,\"maxStudents\":%d,\"billingType\":\"%s\",\"paymentPlanType\":\"%s\",\"installmentCount\":%d}",
+				subject.getId(), escapeJson(subject.getName()), subject.getGrade(),
+				subject.getPrice() != null ? subject.getPrice() : "null", subject.getMaxStudents(),
+				subject.getBillingType() != null ? subject.getBillingType().name() : "null",
+				subject.getPaymentPlanType() != null ? subject.getPaymentPlanType().name() : "null",
+				subject.getInstallmentCount() != null ? subject.getInstallmentCount() : 0);
 
 		activityLogService.log(currentUser, ActivityActionType.CREATE, ActivityTargetType.SUBJECT, subject.getId(),
 				description, meta);
@@ -551,6 +622,10 @@ public class SubjectService {
 		// Ánh xạ trường createdAt và updatedAt sang String với định dạng
 		dto.setCreatedAt(subject.getCreatedAt() != null ? subject.getCreatedAt().format(formatter) : null);
 		dto.setUpdatedAt(subject.getUpdatedAt() != null ? subject.getUpdatedAt().format(formatter) : null);
+
+		dto.setBillingType(subject.getBillingType());
+		dto.setPaymentPlanType(subject.getPaymentPlanType());
+		dto.setInstallmentCount(subject.getInstallmentCount());
 
 		if (subject.getSubjectType() != null) {
 			SubjectTypeDTO stDTO = new SubjectTypeDTO();

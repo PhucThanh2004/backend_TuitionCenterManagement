@@ -4,6 +4,7 @@ import com.management.student_center.entity.ActivityLog;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -41,5 +42,15 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> 
     	        @Param("userId") Long userId,
     	        Pageable pageable
     	);
+    
+    long countByUserIdAndIsReadFalse(Long userId);
+
+    @Modifying
+    @Query("UPDATE ActivityLog a SET a.isRead = true WHERE a.user.id = :userId AND a.isRead = false")
+    void markAllAsReadByUser(@Param("userId") Long userId);
+
+    // Lấy danh sách activity chưa đọc của user
+    @Query("SELECT a FROM ActivityLog a WHERE a.user.id = :userId AND a.isRead = false ORDER BY a.createdAt DESC")
+    List<ActivityLog> findUnreadByUserId(@Param("userId") Long userId, Pageable pageable);
 
 }

@@ -1,6 +1,9 @@
 package com.management.student_center.repository;
 
 import com.management.student_center.entity.Subject;
+import com.management.student_center.enums.BillingType;
+import com.management.student_center.enums.PaymentPlanType;
+
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
@@ -55,4 +58,12 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
 			""")
 	List<Object[]> countSubjectsByLevel();
 
+	
+	List<Subject>
+	findByBillingType(BillingType billingType);
+	
+	List<Subject>
+	findByPaymentPlanType(
+	    PaymentPlanType paymentPlanType
+	);
 }

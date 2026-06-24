@@ -31,7 +31,7 @@ public class StudentController {
 	@GetMapping("/students/group-by-school")
 	public ResponseEntity<Map<String, Object>> getStudentsGroupBySchool(@RequestParam(required = false) String name,
 			@RequestParam(required = false) String grade, @RequestParam(required = false) String schoolName,
-			@RequestParam(required = false) String gender) {
+			@RequestParam(required = false) String gender, @RequestParam(required = false) String status) {
 
 		try {
 			Map<String, String> filters = new HashMap<>();
@@ -43,6 +43,8 @@ public class StudentController {
 				filters.put("schoolName", schoolName);
 			if (gender != null)
 				filters.put("gender", gender);
+			if (status != null)
+			    filters.put("status", status);
 
 			StudentGroupResponseDTO serviceResponse = studentService.getAllStudentsGroupBySchool(filters);
 
@@ -99,7 +101,7 @@ public class StudentController {
 			return createErrorResponse(e, 400);
 		}
 	}
-	
+
 	/**
 	 * === handleUpdateStudent === Cập nhật (Multipart: form-data)
 	 */
@@ -177,7 +179,7 @@ public class StudentController {
 	@GetMapping("/students/export")
 	public ResponseEntity<?> exportStudentsExcel(@RequestParam(required = false) String name,
 			@RequestParam(required = false) String grade, @RequestParam(required = false) String schoolName,
-			@RequestParam(required = false) String gender) {
+			@RequestParam(required = false) String gender, @RequestParam(required = false) String status) {
 		try {
 			Map<String, String> filters = new HashMap<>();
 			if (name != null)
@@ -188,6 +190,8 @@ public class StudentController {
 				filters.put("schoolName", schoolName);
 			if (gender != null)
 				filters.put("gender", gender);
+			if (status != null)
+			    filters.put("status", status);
 
 			byte[] buffer = studentService.exportStudentsToExcel(filters);
 			if (buffer == null || buffer.length == 0) {
@@ -238,36 +242,35 @@ public class StudentController {
 			return createErrorResponse(e);
 		}
 	}
-	
+
 	@GetMapping("/students/schools")
 	public ResponseEntity<Map<String, Object>> getDistinctSchools() {
-	    try {
-	        List<String> schools = studentService.getDistinctSchools();
-	        Map<String, Object> response = new HashMap<>();
-	        response.put("errCode", 0);
-	        response.put("message", "OK");
-	        response.put("data", schools);
-	        return ResponseEntity.ok(response);
-	    } catch (Exception e) {
-	        return createErrorResponse(e);
-	    }
+		try {
+			List<String> schools = studentService.getDistinctSchools();
+			Map<String, Object> response = new HashMap<>();
+			response.put("errCode", 0);
+			response.put("message", "OK");
+			response.put("data", schools);
+			return ResponseEntity.ok(response);
+		} catch (Exception e) {
+			return createErrorResponse(e);
+		}
 	}
-	
+
 	@PostMapping("/students/{id}/avatar")
-	public ResponseEntity<Map<String, Object>> updateAvatar(
-	        @PathVariable Long id,
-	        @RequestPart("file") MultipartFile file) {
-	    try {
-	        studentService.updateAvatar(id, file);
-	        Map<String, Object> response = new HashMap<>();
-	        response.put("errCode", 0);
-	        response.put("message", "Cập nhật ảnh đại diện thành công");
-	        return ResponseEntity.ok(response);
-	    } catch (Exception e) {
-	        return createErrorResponse(e, 400);
-	    }
+	public ResponseEntity<Map<String, Object>> updateAvatar(@PathVariable Long id,
+			@RequestPart("file") MultipartFile file) {
+		try {
+			studentService.updateAvatar(id, file);
+			Map<String, Object> response = new HashMap<>();
+			response.put("errCode", 0);
+			response.put("message", "Cập nhật ảnh đại diện thành công");
+			return ResponseEntity.ok(response);
+		} catch (Exception e) {
+			return createErrorResponse(e, 400);
+		}
 	}
-	
+
 	@GetMapping("/students")
 	public ResponseEntity<Map<String, Object>> getAllStudents(@RequestParam(defaultValue = "1") int page,
 			@RequestParam(defaultValue = "10") int limit, @RequestParam(required = false) String name,
@@ -301,6 +304,25 @@ public class StudentController {
 
 		} catch (Exception e) {
 			return createErrorResponse(e);
+		}
+	}
+
+	@PatchMapping("/students/{id}/restore")
+	public ResponseEntity<Map<String, Object>> restoreStudent(@PathVariable Long id) {
+
+		try {
+			studentService.restoreStudent(id);
+
+			Map<String, Object> response = new HashMap<>();
+			response.put("errCode", 0);
+			response.put("message", "Khôi phục học viên thành công!");
+
+			return ResponseEntity.ok(response);
+
+		} catch (RuntimeException e) {
+			return createErrorResponse(e, 404);
+		} catch (Exception e) {
+			return createErrorResponse(e, 400);
 		}
 	}
 }

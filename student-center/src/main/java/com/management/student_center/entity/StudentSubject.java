@@ -1,9 +1,13 @@
 package com.management.student_center.entity;
 
 import jakarta.persistence.*;
+
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.management.student_center.enums.BillingType;
+import com.management.student_center.enums.PaymentPlanType;
 
 @Entity
 @Table(name = "studentsubjects")
@@ -42,7 +46,17 @@ public class StudentSubject {
         this.enrollmentDate = enrollmentDate;
         this.deletedAt = null; // Mặc định chưa xóa
     }
-    
+    @Column(precision = 19, scale = 2)
+    private BigDecimal feeAmountSnapshot;
+
+    @Enumerated(EnumType.STRING)
+    private BillingType billingTypeSnapshot;
+
+
+	@Enumerated(EnumType.STRING)
+    private PaymentPlanType paymentPlanTypeSnapshot;
+
+    private Integer installmentCountSnapshot;
     // Constructor đầy đủ (có deletedAt)
     public StudentSubject(Long id, Student student, Subject subject, LocalDate enrollmentDate, LocalDate deletedAt) {
         this.id = id;
@@ -72,4 +86,36 @@ public class StudentSubject {
     public boolean isDeleted() {
         return this.deletedAt != null;
     }
+    
+    public BigDecimal getFeeAmountSnapshot() {
+		return feeAmountSnapshot;
+	}
+
+	public void setFeeAmountSnapshot(BigDecimal feeAmountSnapshot) {
+		this.feeAmountSnapshot = feeAmountSnapshot;
+	}
+
+	public BillingType getBillingTypeSnapshot() {
+		return billingTypeSnapshot;
+	}
+
+	public void setBillingTypeSnapshot(BillingType billingTypeSnapshot) {
+		this.billingTypeSnapshot = billingTypeSnapshot;
+	}
+
+	public PaymentPlanType getPaymentPlanTypeSnapshot() {
+		return paymentPlanTypeSnapshot;
+	}
+
+	public void setPaymentPlanTypeSnapshot(PaymentPlanType paymentPlanTypeSnapshot) {
+		this.paymentPlanTypeSnapshot = paymentPlanTypeSnapshot;
+	}
+
+	public Integer getInstallmentCountSnapshot() {
+		return installmentCountSnapshot;
+	}
+
+	public void setInstallmentCountSnapshot(Integer installmentCountSnapshot) {
+		this.installmentCountSnapshot = installmentCountSnapshot;
+	}
 }

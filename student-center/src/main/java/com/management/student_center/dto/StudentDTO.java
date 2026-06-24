@@ -4,6 +4,7 @@ import java.time.LocalDate;
 
 public class StudentDTO {
 	private Long id;
+	private Long userId;
 	private String fullName;
 	private Boolean gender;
 	private LocalDate dateOfBirth;
@@ -39,6 +40,16 @@ public class StudentDTO {
 		this.userInfo = userInfo;
 	}
 
+	public StudentDTO(Long id, Long userId, String fullName, Boolean gender, LocalDate dateOfBirth, String schoolName, String grade) {
+		this.id = id;
+		this.userId = userId;
+		this.fullName = fullName;
+		this.gender = gender;
+		this.dateOfBirth = dateOfBirth;
+		this.schoolName = schoolName;
+		this.grade = grade;
+	}
+
 	// getter + setter
 	public Long getId() {
 		return id;
@@ -46,6 +57,14 @@ public class StudentDTO {
 
 	public void setId(Long id) {
 		this.id = id;
+	}
+	
+	public Long getUserId() {
+		return userId;
+	}
+	
+	public void setUserId(Long userId) {
+		this.userId = userId;
 	}
 
 	public String getFullName() {

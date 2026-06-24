@@ -67,6 +67,7 @@ public class SecurityConfig {
             .requestMatchers("/v1/api/payroll/**").permitAll()
             .requestMatchers("/v1/api/curriculums/**").permitAll()
             .requestMatchers("/v1/api/session-details/**").permitAll()
+            .requestMatchers("/v1/api/student-evaluations/**").permitAll()
             .requestMatchers("/api/auth/**", "/login", "/public/**").permitAll()
             
             

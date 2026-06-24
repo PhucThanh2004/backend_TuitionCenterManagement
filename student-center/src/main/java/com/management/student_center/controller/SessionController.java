@@ -19,6 +19,8 @@ import com.management.student_center.dto.SessionActualContentDTO;
 import com.management.student_center.dto.SessionContentDTO;
 import com.management.student_center.dto.SessionDetailDTO;
 import com.management.student_center.dto.UpcomingSessionDTO;
+import com.management.student_center.entity.Session;
+import com.management.student_center.repository.SessionRepository;
 import com.management.student_center.service.SessionService;
 
 @RestController
@@ -27,6 +29,8 @@ public class SessionController {
 
     @Autowired
     private SessionService sessionService;
+    @Autowired
+    private SessionRepository sessionRepository;  
 
     @GetMapping("/daily")
     public List<DailySessionDTO> getSessionsByDate(
@@ -47,12 +51,35 @@ public class SessionController {
         return ResponseEntity.ok(sessionDetail);
     }
     
-    // Cập nhật nội dung thực tế của buổi học
+ // Cập nhật nội dung thực tế của buổi học
     @PatchMapping("/{sessionId}/actual-content")
     public ResponseEntity<Void> updateActualContent(
             @PathVariable Long sessionId,
             @RequestBody SessionActualContentDTO request) {
+        
+        System.out.println("========== UPDATE ACTUAL CONTENT ==========");
+        System.out.println("Session ID: " + sessionId);
+        System.out.println("isFollowPlan: " + request.getIsFollowPlan());
+        System.out.println("actualTopic: " + request.getActualTopic());
+        System.out.println("actualContent: " + request.getActualContent());
+        System.out.println("actualHomework: " + request.getActualHomework());
+        System.out.println("deviationReason: " + request.getDeviationReason());
+        System.out.println("noteForNextSession: " + request.getNoteForNextSession());
+        
         sessionService.updateActualContent(sessionId, request);
+        
+        // Kiểm tra lại sau khi lưu
+        Session updated = sessionRepository.findById(sessionId).orElse(null);
+        if (updated != null) {
+            System.out.println("After save - isFollowPlan: " + updated.getIsFollowPlan());
+            System.out.println("After save - actualTopic: " + updated.getActualTopic());
+            System.out.println("After save - actualContent: " + updated.getActualContent());
+            System.out.println("After save - actualHomework: " + updated.getActualHomework());
+            System.out.println("After save - deviationReason: " + updated.getDeviationReason());
+            System.out.println("After save - noteForNextSession: " + updated.getNoteForNextSession());
+        }
+        System.out.println("============================================");
+        
         return ResponseEntity.ok().build();
     }
 

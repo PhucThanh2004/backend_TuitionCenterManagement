@@ -2,10 +2,11 @@ package com.management.student_center.controller;
 
 import com.management.student_center.dto.tuition.TuitionCalculationDTO;
 import com.management.student_center.dto.tuition.TuitionDetailUpdateRequest;
-// Import DTO vừa tạo
 import com.management.student_center.dto.tuition.TuitionPaymentRequest;
 import com.management.student_center.entity.StudentTuition;
+import com.management.student_center.enums.StudentTuitionStatus;
 import com.management.student_center.service.StudentTuitionService;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,135 +27,161 @@ public class StudentTuitionController {
 	}
 
 	/**
-	 * 1. 🟢 Tạo hóa đơn học phí cho cả tháng
+	 * Generate invoice theo tháng
 	 */
 	@PostMapping("/create")
 	public ResponseEntity<Map<String, Object>> createTuitions(@RequestParam int month, @RequestParam int year,
-			@RequestParam(required = false, defaultValue = "") String notes) {
+			@RequestParam(required = false) String note) {
+
 		try {
-			List<StudentTuition> tuitions = tuitionService.createTuitions(month, year, notes);
+
+			List<StudentTuition> data = tuitionService.createTuitions(month, year, note);
 
 			Map<String, Object> response = new HashMap<>();
+
 			response.put("errCode", 0);
-			response.put("message", "Tạo hóa đơn thành công cho " + tuitions.size() + " học sinh.");
-			response.put("data", tuitions);
+			response.put("message", "Generate thành công");
+			response.put("data", data);
 
 			return ResponseEntity.status(HttpStatus.CREATED).body(response);
+
 		} catch (Exception e) {
+
 			return createErrorResponse(e);
 		}
 	}
 
 	/**
-	 * 2. 🔵 Lấy danh sách hóa đơn theo tháng
+	 * Danh sách hóa đơn
 	 */
 	@GetMapping("/list")
-    public ResponseEntity<Map<String, Object>> getList(
-            @RequestParam int month,
-            @RequestParam int year,
-            @RequestParam(required = false) String name,
-            @RequestParam(required = false) String grade,
-            @RequestParam(required = false) String status) {
-        try {
-            // Gọi hàm getTuitionsWithFilter mới trong Service
-            List<TuitionCalculationDTO> list = tuitionService.getTuitionsWithFilter(month, year, name, grade, status);
+	public ResponseEntity<Map<String, Object>> getList(
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("errCode", 0);
-            response.put("message", "Lấy dữ liệu thành công");
-            response.put("data", list); // Trả về DTO đã tính toán số dư
+			@RequestParam int month,
 
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            return createErrorResponse(e);
-        }
-    }
+			@RequestParam int year,
+
+			@RequestParam(required = false) String name,
+
+			@RequestParam(required = false) String grade,
+
+			@RequestParam(required = false) StudentTuitionStatus status) {
+
+		try {
+
+			List<TuitionCalculationDTO> data = tuitionService.getTuitionsWithFilter(month, year, name, grade, status);
+
+			Map<String, Object> response = new HashMap<>();
+
+			response.put("errCode", 0);
+			response.put("message", "Success");
+			response.put("data", data);
+
+			return ResponseEntity.ok(response);
+
+		} catch (Exception e) {
+
+			return createErrorResponse(e);
+		}
+	}
 
 	/**
-	 * 3. 🟡 Xem chi tiết hóa đơn của 1 học sinh
+	 * Chi tiết hóa đơn
 	 */
 	@GetMapping("/detail")
-    public ResponseEntity<Map<String, Object>> getDetail(
-            @RequestParam Long studentId, 
-            @RequestParam int month,
-            @RequestParam int year) {
-        try {
-            // Gọi đúng hàm có sẵn trong Service của bạn
-            StudentTuition result = tuitionService.getTuitionDetail(studentId, month, year);
+	public ResponseEntity<Map<String, Object>> getDetail(
 
-            if (result == null) {
-                Map<String, Object> response = new HashMap<>();
-                response.put("errCode", 1);
-                response.put("message", "Không tìm thấy dữ liệu học phí cho học sinh này.");
-                return ResponseEntity.ok(response);
-            }
+			@RequestParam Long studentId,
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("errCode", 0);
-            response.put("message", "OK");
-            response.put("data", result);
+			@RequestParam int month,
 
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            return createErrorResponse(e);
-        }
-    }
+			@RequestParam int year) {
+
+		try {
+
+			StudentTuition tuition = tuitionService.getTuitionDetail(studentId, month, year);
+
+			if (tuition == null) {
+
+				Map<String, Object> response = new HashMap<>();
+
+				response.put("errCode", 1);
+				response.put("message", "Không tìm thấy hóa đơn");
+
+				return ResponseEntity.ok(response);
+			}
+
+			Map<String, Object> response = new HashMap<>();
+
+			response.put("errCode", 0);
+			response.put("message", "Success");
+response.put("data", tuition);
+
+			return ResponseEntity.ok(response);
+
+		} catch (Exception e) {
+
+			return createErrorResponse(e);
+		}
+	}
 
 	/**
-	 * 4. 🟣 Thanh toán học phí Sử dụng DTO đã tách file: TuitionPaymentRequest
+	 * Thanh toán
 	 */
 	@PostMapping("/pay")
-    public ResponseEntity<Map<String, Object>> payTuition(@RequestBody TuitionPaymentRequest request) {
-        try {
-            // Validate đầu vào
-            if (request.getTuitionId() == null || request.getAmount() == null) {
-                throw new IllegalArgumentException("Thiếu thông tin tuitionId hoặc amount.");
-            }
+	public ResponseEntity<Map<String, Object>> payTuition(@RequestBody TuitionPaymentRequest request) {
 
-            // Gọi hàm payTuition mới trong Service (nhận ID và Amount)
-            StudentTuition result = tuitionService.payTuition(request.getTuitionId(), request.getAmount());
+		try {
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("errCode", 0);
-            response.put("message", "Thanh toán thành công!");
-            response.put("data", result); // Trả về hóa đơn đã cập nhật số tiền đã đóng
+			StudentTuition tuition = tuitionService.payTuition(request.getTuitionId(), request.getAmount());
 
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            return createErrorResponse(e);
-        }
-    }
+			Map<String, Object> response = new HashMap<>();
 
-    // --- Hàm phụ trợ trả lỗi ---
-    private ResponseEntity<Map<String, Object>> createErrorResponse(Exception e) {
-        e.printStackTrace(); // Log lỗi ra console để debug
-        Map<String, Object> response = new HashMap<>();
+			response.put("errCode", 0);
+			response.put("message", "Thanh toán thành công");
+			response.put("data", tuition);
 
-        // Xử lý các loại lỗi cụ thể nếu cần
-        if (e instanceof IllegalArgumentException) {
-            response.put("errCode", 400);
-            response.put("message", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
-        }
+			return ResponseEntity.ok(response);
 
-        response.put("errCode", 1);
-        response.put("message", e.getMessage() != null ? e.getMessage() : "Lỗi hệ thống");
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-    }
-    
-    @PostMapping("/detail/update")
-    public ResponseEntity<Map<String, Object>> updateDetail(@RequestBody TuitionDetailUpdateRequest request) {
-        try {
-            StudentTuition updatedTuition = tuitionService.updateTuitionDetail(request);
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("errCode", 0);
-            response.put("message", "Cập nhật thành công");
-            response.put("data", updatedTuition); // Trả về hóa đơn mới nhất để FE cập nhật
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            // ... xử lý lỗi như cũ
-            return createErrorResponse(e);
-        }
-    }
+		} catch (Exception e) {
+
+			return createErrorResponse(e);
+		}
+	}
+
+	/**
+	 * Chỉnh sửa chi tiết học phí
+	 */
+	@PostMapping("/detail/update")
+	public ResponseEntity<Map<String, Object>> updateDetail(@RequestBody TuitionDetailUpdateRequest request) {
+
+		try {
+
+			StudentTuition tuition = tuitionService.updateTuitionDetail(request);
+
+			Map<String, Object> response = new HashMap<>();
+
+			response.put("errCode", 0);
+			response.put("message", "Cập nhật thành công");
+			response.put("data", tuition);
+
+			return ResponseEntity.ok(response);
+
+		} catch (Exception e) {
+
+			return createErrorResponse(e);
+		}
+	}
+
+	private ResponseEntity<Map<String, Object>> createErrorResponse(Exception e) {
+
+		e.printStackTrace();
+
+		Map<String, Object> response = new HashMap<>();
+
+		response.put("errCode", 1);
+		response.put("message", e.getMessage());
+
+		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+	}
 }

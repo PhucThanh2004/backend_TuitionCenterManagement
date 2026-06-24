@@ -1,79 +1,127 @@
 package com.management.student_center.dto.tuition;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.LocalDate;
 
 public class TuitionCalculationDTO {
-	
+
 	private Long tuitionId;
-    private Long studentId;
-    
-    private String fullName;
-    private String phoneNumber;
-    private String grade;     
-    private String status;     
 
-    // --- Các trường tiền tệ ---
-    private BigDecimal totalAmount; 
-    private BigDecimal paidAmount;     
-    private BigDecimal remainingAmount;
-    
-    // Danh sách chi tiết từng môn
-    private List<SubjectTuitionDTO> subjects = new ArrayList<>();
+	private String invoiceCode;
 
-    // --- Getters & Setters ---
-    public Long getTuitionId() { return tuitionId; }
-    public void setTuitionId(Long tuitionId) { this.tuitionId = tuitionId; }
+	private Long studentId;
 
-    public Long getStudentId() { return studentId; }
-    public void setStudentId(Long studentId) { this.studentId = studentId; }
+	private String fullName;
 
-    public String getFullName() { return fullName; }
-    public void setFullName(String fullName) { this.fullName = fullName; }
+	private String phoneNumber;
 
-    public String getPhoneNumber() { return phoneNumber; }
-    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+	private String grade;
 
-    public String getGrade() { return grade; }
-    public void setGrade(String grade) { this.grade = grade; }
+	private String status;
 
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+	private BigDecimal totalAmount;
 
-    public BigDecimal getTotalAmount() { return totalAmount; }
-    public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
+	private BigDecimal paidAmount;
 
-    public BigDecimal getPaidAmount() { return paidAmount; }
-    public void setPaidAmount(BigDecimal paidAmount) { this.paidAmount = paidAmount; }
+	private BigDecimal remainingAmount;
 
-    public BigDecimal getRemainingAmount() { return remainingAmount; }
-    public void setRemainingAmount(BigDecimal remainingAmount) { this.remainingAmount = remainingAmount; }
+	private LocalDate dueDate;
 
-    public List<SubjectTuitionDTO> getSubjects() { return subjects; }
-    public void setSubjects(List<SubjectTuitionDTO> subjects) { this.subjects = subjects; }
+	private Boolean tuitionLocked;
 
-    // Class con lưu chi tiết từng môn
-    public static class SubjectTuitionDTO {
-        private Long subjectId;
-        private String subjectName;
-        private BigDecimal hourlyRate; // Giá 1 giờ
-        private int totalSessions;     // Tổng số buổi
-        private float totalHours;      // Tổng số giờ
-        private BigDecimal totalMoney; // Thành tiền
+	public Long getTuitionId() {
+		return tuitionId;
+	}
 
-        // --- Getters & Setters ---
-        public Long getSubjectId() { return subjectId; }
-        public void setSubjectId(Long subjectId) { this.subjectId = subjectId; }
-        public String getSubjectName() { return subjectName; }
-        public void setSubjectName(String subjectName) { this.subjectName = subjectName; }
-        public BigDecimal getHourlyRate() { return hourlyRate; }
-        public void setHourlyRate(BigDecimal hourlyRate) { this.hourlyRate = hourlyRate; }
-        public int getTotalSessions() { return totalSessions; }
-        public void setTotalSessions(int totalSessions) { this.totalSessions = totalSessions; }
-        public float getTotalHours() { return totalHours; }
-        public void setTotalHours(float totalHours) { this.totalHours = totalHours; }
-        public BigDecimal getTotalMoney() { return totalMoney; }
-        public void setTotalMoney(BigDecimal totalMoney) { this.totalMoney = totalMoney; }
-    }
+	public void setTuitionId(Long tuitionId) {
+		this.tuitionId = tuitionId;
+	}
+
+	public String getInvoiceCode() {
+		return invoiceCode;
+	}
+
+	public void setInvoiceCode(String invoiceCode) {
+		this.invoiceCode = invoiceCode;
+	}
+
+	public Long getStudentId() {
+		return studentId;
+	}
+
+	public void setStudentId(Long studentId) {
+		this.studentId = studentId;
+	}
+
+	public String getFullName() {
+		return fullName;
+	}
+
+	public void setFullName(String fullName) {
+		this.fullName = fullName;
+	}
+
+	public String getPhoneNumber() {
+		return phoneNumber;
+	}
+
+	public void setPhoneNumber(String phoneNumber) {
+		this.phoneNumber = phoneNumber;
+	}
+
+	public String getGrade() {
+		return grade;
+	}
+
+	public void setGrade(String grade) {
+		this.grade = grade;
+	}
+
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+
+	public BigDecimal getTotalAmount() {
+		return totalAmount;
+	}
+
+	public void setTotalAmount(BigDecimal totalAmount) {
+		this.totalAmount = totalAmount;
+	}
+
+	public BigDecimal getPaidAmount() {
+		return paidAmount;
+	}
+
+	public void setPaidAmount(BigDecimal paidAmount) {
+		this.paidAmount = paidAmount;
+	}
+
+	public BigDecimal getRemainingAmount() {
+		return remainingAmount;
+	}
+
+	public void setRemainingAmount(BigDecimal remainingAmount) {
+		this.remainingAmount = remainingAmount;
+	}
+
+	public LocalDate getDueDate() {
+		return dueDate;
+	}
+
+	public void setDueDate(LocalDate dueDate) {
+		this.dueDate = dueDate;
+	}
+
+	public Boolean getTuitionLocked() {
+		return tuitionLocked;
+	}
+
+	public void setTuitionLocked(Boolean tuitionLocked) {
+		this.tuitionLocked = tuitionLocked;
+	}
 }

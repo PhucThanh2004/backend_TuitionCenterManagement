@@ -47,4 +47,13 @@ public interface StudentSubjectRepository extends JpaRepository<StudentSubject, 
     
     @Query("SELECT COUNT(ss) FROM StudentSubject ss WHERE ss.subject.id = :subjectId AND ss.deletedAt IS NULL")
     long countActiveBySubjectId(@Param("subjectId") Long subjectId);
+    
+    @Query("""
+    		SELECT ss
+    		FROM StudentSubject ss
+    		WHERE ss.billingTypeSnapshot =
+    		com.management.student_center.enums.BillingType.PER_SUBJECT
+    		AND ss.deletedAt IS NULL
+    		""")
+    		List<StudentSubject> findAllPerSubjectEnrollments();
 }

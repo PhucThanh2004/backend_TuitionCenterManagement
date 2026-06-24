@@ -3,63 +3,44 @@ package com.management.student_center.dto.tuition;
 import java.math.BigDecimal;
 
 public class TuitionPaymentRequest {
-	
-	private Long tuitionId;       // ID của hóa đơn cần thanh toán
-    private BigDecimal amount;
-    
-    private Long studentId;
-    private int month;
-    private int year;
 
-    // Constructor mặc định (Bắt buộc để Jackson deserialize JSON)
-    public TuitionPaymentRequest() {
-    }
+	private Long tuitionId;
 
-    // Constructor đầy đủ (Tùy chọn, tiện cho test)
-    public TuitionPaymentRequest(Long studentId, int month, int year) {
-        this.studentId = studentId;
-        this.month = month;
-        this.year = year;
-    }
+	private BigDecimal amount;
 
-    // Getters & Setters
-    public Long getStudentId() {
-        return studentId;
-    }
+	private String paymentMethod;
 
-    public void setStudentId(Long studentId) {
-        this.studentId = studentId;
-    }
+	private String note;
 
-    public int getMonth() {
-        return month;
-    }
+	public Long getTuitionId() {
+		return tuitionId;
+	}
 
-    public void setMonth(int month) {
-        this.month = month;
-    }
+	public void setTuitionId(Long tuitionId) {
+		this.tuitionId = tuitionId;
+	}
 
-    public int getYear() {
-        return year;
-    }
+	public BigDecimal getAmount() {
+		return amount;
+	}
 
-    public void setYear(int year) {
-        this.year = year;
-    }
-    
-    public Long getTuitionId() {
-        return tuitionId;
-    }
+	public void setAmount(BigDecimal amount) {
+		this.amount = amount;
+	}
 
-    public void setTuitionId(Long tuitionId) {
-        this.tuitionId = tuitionId;
-    }
+	public String getPaymentMethod() {
+		return paymentMethod;
+	}
 
-    public BigDecimal getAmount() {
-        return amount;
-    }
+	public void setPaymentMethod(String paymentMethod) {
+		this.paymentMethod = paymentMethod;
+	}
 
-    public void setAmount(BigDecimal amount) {
-        this.amount = amount;
-    }
+	public String getNote() {
+		return note;
+	}
+
+	public void setNote(String note) {
+		this.note = note;
+	}
 }

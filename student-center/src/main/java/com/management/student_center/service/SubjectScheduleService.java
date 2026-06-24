@@ -36,16 +36,18 @@ public class SubjectScheduleService {
 	private final RoomRepository roomRepository;
 	private final ActivityLogService activityLogService;
 	private final CurrentUserService currentUserService;
-
+	private final SessionTeacherSyncService sessionTeacherSyncService;
+	
 	public SubjectScheduleService(SubjectScheduleRepository scheduleRepository, SessionRepository sessionRepository,
 			SubjectRepository subjectRepository, RoomRepository roomRepository, ActivityLogService activityLogService,
-			CurrentUserService currentUserService) {
+			CurrentUserService currentUserService, SessionTeacherSyncService sessionTeacherSyncService) {
 		this.scheduleRepository = scheduleRepository;
 		this.sessionRepository = sessionRepository;
 		this.subjectRepository = subjectRepository;
 		this.roomRepository = roomRepository;
 		this.activityLogService = activityLogService;
 		this.currentUserService = currentUserService;
+		this.sessionTeacherSyncService = sessionTeacherSyncService;
 	}
 
 	/**
@@ -365,6 +367,7 @@ public class SubjectScheduleService {
 
         sessionRepository.save(session);
 
+        sessionTeacherSyncService.createMainTeacherAssignments(session);
         // LOG ACTIVITY: THÊM BUỔI HỌC THỦ CÔNG
         String formattedDate = req.getSessionDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         String roomName = room != null ? room.getName() : "chưa có phòng";

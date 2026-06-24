@@ -21,10 +21,29 @@ public interface StudentRepository extends JpaRepository<Student, Long>, JpaSpec
 	// Đếm số học sinh được tạo trong khoảng thời gian
 	long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
 
-	// Lấy 6 học sinh mới nhất
+	// Lấy 5 học sinh mới nhất
 	List<Student> findTop5ByOrderByCreatedAtDesc();
 
 	@Query("SELECT DISTINCT s.schoolName FROM Student s WHERE s.schoolName IS NOT NULL AND s.schoolName != ''")
 	List<String> findDistinctSchoolNames();
 
+	@Query("""
+		    SELECT COUNT(s)
+		    FROM Student s
+		    WHERE s.userInfo.status = true
+		""")
+		long countActiveStudents();
+	
+	List<Student> findTop5ByUserInfo_StatusTrueOrderByCreatedAtDesc();
+	
+	@Query("""
+		    SELECT COUNT(s)
+		    FROM Student s
+		    WHERE s.userInfo.status = true
+		      AND s.createdAt BETWEEN :start AND :end
+		""")
+		long countActiveStudentsCreatedBetween(
+		        LocalDateTime start,
+		        LocalDateTime end
+		);
 }

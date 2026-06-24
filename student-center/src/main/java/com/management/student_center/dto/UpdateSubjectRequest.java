@@ -1,5 +1,8 @@
 package com.management.student_center.dto;
 
+import com.management.student_center.enums.BillingType;
+import com.management.student_center.enums.PaymentPlanType;
+
 public class UpdateSubjectRequest {
     private String name;
     private String grade;
@@ -8,11 +11,14 @@ public class UpdateSubjectRequest {
     private Integer maxStudents;
     private Integer sessionsPerWeek;
     private String note;
-    private Long teacherId;      // Có thể null hoặc "" ở frontend
-    private Double salaryRate;   // Có thể null, default = 0
+    private Long teacherId;
+    private Double salaryRate;
     private Long subjectTypeId;
 
-    // Getters & Setters
+    private BillingType billingType;
+    private PaymentPlanType paymentPlanType;
+    private Integer installmentCount;
+
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
@@ -39,12 +45,16 @@ public class UpdateSubjectRequest {
 
     public Double getSalaryRate() { return salaryRate; }
     public void setSalaryRate(Double salaryRate) { this.salaryRate = salaryRate; }
-	public Long getSubjectTypeId() {
-		return subjectTypeId;
-	}
-	public void setSubjectTypeId(Long subjectTypeId) {
-		this.subjectTypeId = subjectTypeId;
-	}
     
+    public Long getSubjectTypeId() { return subjectTypeId; }
+    public void setSubjectTypeId(Long subjectTypeId) { this.subjectTypeId = subjectTypeId; }
     
+    public BillingType getBillingType() { return billingType; }
+    public void setBillingType(BillingType billingType) { this.billingType = billingType; }
+    
+    public PaymentPlanType getPaymentPlanType() { return paymentPlanType; }
+    public void setPaymentPlanType(PaymentPlanType paymentPlanType) { this.paymentPlanType = paymentPlanType; }
+    
+    public Integer getInstallmentCount() { return installmentCount; }
+    public void setInstallmentCount(Integer installmentCount) { this.installmentCount = installmentCount; }
 }

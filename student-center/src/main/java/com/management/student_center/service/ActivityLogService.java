@@ -9,6 +9,7 @@ import com.management.student_center.repository.ActivityLogRepository;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -37,16 +38,12 @@ public class ActivityLogService {
         ActivityLog activityLog = new ActivityLog();
 
         activityLog.setUser(user);
-
         activityLog.setActionType(actionType.name());
-
         activityLog.setTargetType(targetType.name());
-
         activityLog.setTargetId(targetId);
-
         activityLog.setDescription(description);
-
         activityLog.setMeta(meta);
+        // isRead mặc định là false (đã được set trong entity)
 
         activityLogRepository.save(activityLog);
     }
@@ -84,6 +81,39 @@ public class ActivityLogService {
     }
 
     // =========================
+    // MARK AS READ
+    // =========================
+
+    @Transactional
+    public void markAsRead(Long activityLogId) {
+        ActivityLog log = activityLogRepository.findById(activityLogId)
+                .orElseThrow(() -> new RuntimeException("Activity log not found with id: " + activityLogId));
+        log.setIsRead(true);
+        activityLogRepository.save(log);
+    }
+
+    @Transactional
+    public void markAllAsRead(Long userId) {
+        activityLogRepository.markAllAsReadByUser(userId);
+    }
+
+    // =========================
+    // GET UNREAD COUNT
+    // =========================
+
+    public long getUnreadCount(Long userId) {
+        return activityLogRepository.countByUserIdAndIsReadFalse(userId);
+    }
+    
+    public List<ActivityLogResponse> getUnreadActivities(Long userId, int limit) {
+        return activityLogRepository
+                .findUnreadByUserId(userId, PageRequest.of(0, limit))
+                .stream()
+                .map(this::mapToDTO)
+                .toList();
+    }
+
+    // =========================
     // DTO MAPPER
     // =========================
 
@@ -92,32 +122,26 @@ public class ActivityLogService {
         ActivityLogResponse dto = new ActivityLogResponse();
 
         dto.setId(log.getId());
-        
         dto.setUserId(log.getUser().getId());
-
         dto.setUserName(
                 log.getUser() != null
                         ? log.getUser().getFullName()
                         : null
         );
-
         dto.setUserImage(
                 log.getUser() != null
                         ? log.getUser().getImage()
                         : null
         );
-
         dto.setActionType(log.getActionType());
-
         dto.setTargetType(log.getTargetType());
-
         dto.setTargetId(log.getTargetId());
-
         dto.setDescription(log.getDescription());
-
         dto.setMeta(log.getMeta());
-
         dto.setCreatedAt(log.getCreatedAt());
+        
+        // Thêm isRead vào DTO
+        dto.setIsRead(log.getIsRead());
 
         return dto;
     }
