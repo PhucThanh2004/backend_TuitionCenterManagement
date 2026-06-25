@@ -88,8 +88,9 @@ public class PayrollPreviewService {
 				continue;
 			}
 
-			if (!"present".equalsIgnoreCase(attendance.getStatus())) {
-				continue;
+			if (!"present".equalsIgnoreCase(attendance.getStatus())
+			        && !"late".equalsIgnoreCase(attendance.getStatus())) {
+			    continue;
 			}
 
 			Session session = st.getSessionInfo();
