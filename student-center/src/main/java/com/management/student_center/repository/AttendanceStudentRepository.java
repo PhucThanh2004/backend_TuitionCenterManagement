@@ -66,6 +66,13 @@
 	    @Query("SELECT COUNT(a) FROM AttendanceStudent a WHERE a.student.id = :studentId AND a.session.subject.id = :subjectId AND a.status = 'late'")
 	    Integer countLateByStudentAndSubject(@Param("studentId") Long studentId, @Param("subjectId") Long subjectId);
 	    
+	    // Lấy attendance theo khoảng thời gian
+	    @Query("SELECT a FROM AttendanceStudent a WHERE a.session.sessionDate BETWEEN :startDate AND :endDate")
+	    List<AttendanceStudent> findBySessionSessionDateBetween(@Param("startDate") LocalDate startDate, 
+	                                                             @Param("endDate") LocalDate endDate);
+	    
+	    // Lấy attendance theo student
+	    List<AttendanceStudent> findByStudentId(Long studentId);
 	    
 	
 	}

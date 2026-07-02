@@ -1,7 +1,11 @@
 package com.management.student_center.service;
 
+import com.management.student_center.dto.AttendanceExportDTO;
+import com.management.student_center.dto.AttendanceImportDTO;
 import com.management.student_center.dto.AttendanceResponseDTO;
 import com.management.student_center.dto.AttendanceStudentDTO;
+import com.management.student_center.dto.ImportErrorDTO;
+import com.management.student_center.dto.ImportResultDTO;
 import com.management.student_center.dto.TodayAttendanceDTO;
 import com.management.student_center.dto.studentSubjectDto.AttendanceHistoryDTO;
 import com.management.student_center.dto.studentSubjectDto.AttendanceStatisticsDTO;
@@ -163,6 +167,18 @@ public class AttendanceService {
             Student student = studentMap.get(studentId);
             List<StudentSubject> periods = entry.getValue();
             
+            Boolean gender = null;
+            String schoolName = null;
+            
+            if (student != null) {
+                User user = student.getUserInfo();
+                if (user != null) {
+                    gender = user.getGender(); 
+                }
+                
+                schoolName = student.getSchoolName();  
+            }
+            
             // Tìm period active tại mỗi session và xây dựng attendanceItems
             List<AttendanceResponseDTO.AttendanceItem> attendanceItems = new ArrayList<>();
             LocalDate currentEnrollmentDate = null;
@@ -225,6 +241,8 @@ public class AttendanceService {
                 new AttendanceResponseDTO.StudentAttendanceDTO(
                     studentId,
                     student.getUserInfo().getFullName(),
+                    gender,                          
+                    schoolName,
                     attendanceItems,
                     enrollmentDate,
                     deletedAt
@@ -616,4 +634,343 @@ public class AttendanceService {
         
         return dto;
     }
+    
+     // ==================== EXPORT METHODS ====================
+     
+     /**
+      * Export attendance của 1 môn học trong khoảng thời gian
+      */
+    public List<AttendanceExportDTO> exportAttendanceBySubjectAndDateRange(
+            Long subjectId, LocalDate startDate, LocalDate endDate) {
+        
+        // Lấy tất cả sessions của subject trong khoảng thời gian
+        List<Session> sessions = sessionRepository.findBySubjectIdAndSessionDateBetween(
+            subjectId, startDate, endDate);
+        
+        if (sessions.isEmpty()) {
+            return Collections.emptyList();
+        }
+        
+        // ✅ LẤY TẤT CẢ STUDENT SUBJECT (học sinh đăng ký môn học)
+        List<StudentSubject> allStudentSubjects = studentSubjectRepository.findBySubject_Id(subjectId);
+        
+        if (allStudentSubjects.isEmpty()) {
+            return Collections.emptyList();
+        }
+        
+        // Lấy attendance records (nếu có)
+        List<AttendanceStudent> attendances = attendanceStudentRepository.findAllBySessionIn(sessions);
+        Map<String, AttendanceStudent> attendanceMap = new HashMap<>();
+        for (AttendanceStudent att : attendances) {
+            String key = att.getStudent().getId() + "_" + att.getSession().getId();
+            attendanceMap.put(key, att);
+        }
+        
+        // ✅ XÂY DỰNG DTO CHO TỪNG STUDENT VÀ TỪNG SESSION
+        List<AttendanceExportDTO> result = new ArrayList<>();
+        
+        for (StudentSubject ss : allStudentSubjects) {
+            Student student = ss.getStudent();
+            User user = student.getUserInfo();
+            
+            for (Session session : sessions) {
+                // Kiểm tra student có active trong session này không
+                LocalDate sessionDate = session.getSessionDate();
+                LocalDate enrollmentDate = ss.getEnrollmentDate();
+                LocalDate deletedAt = ss.getDeletedAt();
+                
+                // Nếu student chưa đăng ký hoặc đã bị xóa tại thời điểm session
+                if (sessionDate.isBefore(enrollmentDate)) {
+                    continue; // Chưa đăng ký
+                }
+                if (deletedAt != null && sessionDate.isAfter(deletedAt)) {
+                    continue; // Đã bị xóa
+                }
+                
+                // Lấy attendance nếu có
+                String key = student.getId() + "_" + session.getId();
+                AttendanceStudent attendance = attendanceMap.get(key);
+                
+                AttendanceExportDTO dto = new AttendanceExportDTO();
+                dto.setStudentId(student.getId());
+                dto.setStudentName(user.getFullName());
+                dto.setStudentEmail(user.getEmail());
+                dto.setGrade(student.getGrade());
+                dto.setSchoolName(student.getSchoolName());
+                
+                // ✅ Nếu có attendance thì lấy status, nếu không để trống (chưa điểm danh)
+                if (attendance != null) {
+                    dto.setStatus(attendance.getStatus());
+                    dto.setNote(attendance.getNote());
+                } else {
+                    dto.setStatus("");  // Chưa điểm danh
+                    dto.setNote(null);
+                }
+                
+                dto.setSessionDate(session.getSessionDate());
+                dto.setStartTime(session.getStartTime());
+                dto.setEndTime(session.getEndTime());
+                
+                Subject subject = session.getSubject();
+                if (subject != null) {
+                    dto.setSubjectName(subject.getName());
+                    dto.setSubjectId(String.valueOf(subject.getId()));
+                }
+                
+                if (session.getRoom() != null) {
+                    dto.setRoomName(session.getRoom().getName());
+                }
+                
+                result.add(dto);
+            }
+        }
+        
+        return result;
+    }
+
+    /**
+     * Export attendance của 1 môn học (tất cả thời gian)
+     */
+    public List<AttendanceExportDTO> exportAttendanceBySubject(Long subjectId) {
+        List<Session> sessions = sessionRepository.findBySubject_IdOrderBySessionDateAsc(subjectId);
+        if (sessions.isEmpty()) {
+            return Collections.emptyList();
+        }
+        
+        // ✅ LẤY TẤT CẢ STUDENT SUBJECT
+        List<StudentSubject> allStudentSubjects = studentSubjectRepository.findBySubject_Id(subjectId);
+        
+        if (allStudentSubjects.isEmpty()) {
+            return Collections.emptyList();
+        }
+        
+        // Lấy attendance records (nếu có)
+        List<AttendanceStudent> attendances = attendanceStudentRepository.findAllBySessionIn(sessions);
+        Map<String, AttendanceStudent> attendanceMap = new HashMap<>();
+        for (AttendanceStudent att : attendances) {
+            String key = att.getStudent().getId() + "_" + att.getSession().getId();
+            attendanceMap.put(key, att);
+        }
+        
+        // ✅ XÂY DỰNG DTO
+        List<AttendanceExportDTO> result = new ArrayList<>();
+        
+        for (StudentSubject ss : allStudentSubjects) {
+            Student student = ss.getStudent();
+            User user = student.getUserInfo();
+            
+            for (Session session : sessions) {
+                LocalDate sessionDate = session.getSessionDate();
+                LocalDate enrollmentDate = ss.getEnrollmentDate();
+                LocalDate deletedAt = ss.getDeletedAt();
+                
+                if (sessionDate.isBefore(enrollmentDate)) continue;
+                if (deletedAt != null && sessionDate.isAfter(deletedAt)) continue;
+                
+                String key = student.getId() + "_" + session.getId();
+                AttendanceStudent attendance = attendanceMap.get(key);
+                
+                AttendanceExportDTO dto = new AttendanceExportDTO();
+                dto.setStudentId(student.getId());
+                dto.setStudentName(user.getFullName());
+                dto.setStudentEmail(user.getEmail());
+                dto.setGrade(student.getGrade());
+                dto.setSchoolName(student.getSchoolName());
+                
+                if (attendance != null) {
+                    dto.setStatus(attendance.getStatus());
+                    dto.setNote(attendance.getNote());
+                } else {
+                    dto.setStatus("");  // Chưa điểm danh
+                    dto.setNote(null);
+                }
+                
+                dto.setSessionDate(session.getSessionDate());
+                dto.setStartTime(session.getStartTime());
+                dto.setEndTime(session.getEndTime());
+                
+                Subject subject = session.getSubject();
+                if (subject != null) {
+                    dto.setSubjectName(subject.getName());
+                    dto.setSubjectId(String.valueOf(subject.getId()));
+                }
+                
+                if (session.getRoom() != null) {
+                    dto.setRoomName(session.getRoom().getName());
+                }
+                
+                result.add(dto);
+            }
+        }
+        
+        return result;
+    }
+     
+     private AttendanceExportDTO convertToExportDTO(AttendanceStudent attendance) {
+         Student student = attendance.getStudent();
+         User user = student.getUserInfo();
+         Session session = attendance.getSession();
+         Subject subject = session.getSubject();
+         
+         AttendanceExportDTO dto = new AttendanceExportDTO();
+         dto.setStudentId(student.getId());
+         dto.setStudentName(user.getFullName());
+         dto.setStudentEmail(user.getEmail());
+         dto.setGrade(student.getGrade());
+         dto.setSchoolName(student.getSchoolName());
+         dto.setStatus(attendance.getStatus());
+         dto.setNote(attendance.getNote());
+         dto.setSessionDate(session.getSessionDate());
+         dto.setStartTime(session.getStartTime());
+         dto.setEndTime(session.getEndTime());
+         
+         if (subject != null) {
+             dto.setSubjectName(subject.getName());
+             dto.setSubjectId(String.valueOf(subject.getId()));
+         }
+         
+         if (session.getRoom() != null) {
+             dto.setRoomName(session.getRoom().getName());
+         }
+         
+         return dto;
+     }
+     
+     // ==================== IMPORT METHODS ====================
+     
+     @Transactional
+     public ImportResultDTO importAttendance(List<AttendanceImportDTO> importData) {
+         List<ImportErrorDTO> errors = new ArrayList<>();
+         List<AttendanceStudent> processed = new ArrayList<>();
+         Set<Long> processedSessionIds = new HashSet<>();
+         User currentUser = currentUserService.getCurrentUser();
+         int totalRecords = importData.size();
+         
+         for (int i = 0; i < importData.size(); i++) {
+             AttendanceImportDTO item = importData.get(i);
+             try {
+                 AttendanceStudent attendance = processImportItem(item, i, currentUser);
+                 if (attendance != null) {
+                     processed.add(attendance);
+                     if (attendance.getSession() != null) {
+                         processedSessionIds.add(attendance.getSession().getId());
+                     }
+                 }
+             } catch (Exception e) {
+                 errors.add(new ImportErrorDTO(i + 1, item, e.getMessage()));
+             }
+         }
+         
+         // Batch save
+         if (!processed.isEmpty()) {
+             attendanceStudentRepository.saveAll(processed);
+         }
+         
+         for (Long sessionId : processedSessionIds) {
+             try {
+                 Session session = sessionRepository.findById(sessionId)
+                     .orElse(null);
+                 if (session != null) {
+                     updateSessionStatusBasedOnAttendance(session);
+                 }
+             } catch (Exception e) {
+                 // Log lỗi nhưng không ảnh hưởng đến import
+                 System.err.println("Không thể cập nhật session status: " + e.getMessage());
+             }
+         }
+         
+         String message = String.format("Import hoàn tất: %d/%d bản ghi thành công, %d lỗi", 
+                                        processed.size(), totalRecords, errors.size());
+         
+         return new ImportResultDTO(processed.size(), errors.size(), errors, message, totalRecords);
+     }
+     
+     private AttendanceStudent processImportItem(AttendanceImportDTO item, int rowIndex, User currentUser) {
+    	    // Validate status
+    	    if (item.getStatus() == null || 
+    	        !Arrays.asList("present", "late", "absent").contains(item.getStatus())) {
+    	        throw new IllegalArgumentException(
+    	            "Status không hợp lệ tại dòng " + (rowIndex + 1) + 
+    	            ". Chấp nhận: present, late, absent"
+    	        );
+    	    }
+    	    
+    	    // Validate date
+    	    if (item.getSessionDate() == null) {
+    	        throw new IllegalArgumentException(
+    	            "Ngày học không hợp lệ tại dòng " + (rowIndex + 1)
+    	        );
+    	    }
+    	    
+    	    // Validate student ID
+    	    if (item.getStudentId() == null || item.getStudentId() <= 0) {
+    	        throw new IllegalArgumentException(
+    	            "Student ID không hợp lệ tại dòng " + (rowIndex + 1)
+    	        );
+    	    }
+    	    
+    	    // Validate subject ID
+    	    if (item.getSubjectId() == null || item.getSubjectId() <= 0) {
+    	        throw new IllegalArgumentException(
+    	            "Subject ID không hợp lệ tại dòng " + (rowIndex + 1)
+    	        );
+    	    }
+    	    
+    	    // Find student by ID
+    	    Student student = studentRepository.findById(item.getStudentId())
+    	        .orElseThrow(() -> new IllegalArgumentException(
+    	            "Không tìm thấy học sinh với ID: " + item.getStudentId() + 
+    	            " tại dòng " + (rowIndex + 1)
+    	        ));
+    	    
+    	    // Find session by subject and date
+    	    Session session = sessionRepository
+    	        .findBySubjectIdAndSessionDate(item.getSubjectId(), item.getSessionDate())
+    	        .orElseThrow(() -> new IllegalArgumentException(
+    	            "Không tìm thấy buổi học cho môn " + item.getSubjectId() + 
+    	            " vào ngày: " + item.getSessionDate() + " tại dòng " + (rowIndex + 1)
+    	        ));
+    	    
+    	    // Check if session is canceled
+    	    if ("canceled".equals(session.getStatus())) {
+    	        throw new IllegalArgumentException(
+    	            "Buổi học ngày " + item.getSessionDate() + " đã bị hủy tại dòng " + (rowIndex + 1)
+    	        );
+    	    }
+    	    
+    	    // Check if attendance already exists
+    	    AttendanceStudent existing = attendanceStudentRepository
+    	        .findBySessionAndStudent(session, student)
+    	        .orElse(null);
+    	    
+    	    AttendanceStudent result;
+    	    if (existing != null) {
+    	        // Update existing
+    	        existing.setStatus(item.getStatus());
+    	        if (item.getNote() != null) {
+    	            existing.setNote(item.getNote());
+    	        }
+    	        result = existing;
+    	    } else {
+    	        // Create new
+    	        AttendanceStudent newAttendance = new AttendanceStudent();
+    	        newAttendance.setStudent(student);
+    	        newAttendance.setSession(session);  
+    	        newAttendance.setStatus(item.getStatus());
+    	        newAttendance.setNote(item.getNote());
+    	        result = newAttendance;
+    	    }
+    	    
+    	    // Log activity
+    	    logAttendanceAction(
+    	        currentUser,
+    	        existing != null ? ActivityActionType.UPDATE : ActivityActionType.CREATE,
+    	        student,
+    	        session,
+    	        item.getStatus(),
+    	        existing != null ? existing.getStatus() : null
+    	    );
+    	    
+    	    return result;  
+    	}
 }

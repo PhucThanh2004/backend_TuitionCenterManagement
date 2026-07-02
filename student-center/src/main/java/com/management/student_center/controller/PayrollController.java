@@ -5,6 +5,8 @@ import com.management.student_center.dto.payroll.MonthlyPayrollStatsDTO;
 import com.management.student_center.dto.payroll.PayrollDetailResponseDTO;
 import com.management.student_center.dto.payroll.PayrollFinalizeDTO;
 import com.management.student_center.dto.payroll.PayrollListItemDTO;
+import com.management.student_center.dto.payroll.PayrollPaymentRequestDTO;
+import com.management.student_center.dto.payroll.PayrollPaymentResponseDTO;
 import com.management.student_center.dto.payroll.PayrollPreviewRequestDTO;
 import com.management.student_center.dto.payroll.PayrollPreviewResponseDTO;
 import com.management.student_center.dto.payroll.TeacherPaymentResponseDTO;
@@ -14,6 +16,7 @@ import com.management.student_center.dto.payroll.TeacherPayrollRejectDTO;
 import com.management.student_center.entity.TeacherPayment;
 import com.management.student_center.service.payroll.PayrollBatchService;
 import com.management.student_center.service.payroll.PayrollGenerationService;
+import com.management.student_center.service.payroll.PayrollPaymentService;
 import com.management.student_center.service.payroll.PayrollPreviewService;
 import com.management.student_center.service.payroll.PayrollQueryService;
 import com.management.student_center.service.payroll.TeacherPayrollActionService;
@@ -51,10 +54,13 @@ public class PayrollController {
 
 	private final TeacherPayrollActionService teacherPayrollActionService;
 
+	private final PayrollPaymentService payrollPaymentService;
+
 	public PayrollController(PayrollPreviewService payrollPreviewService,
 			PayrollGenerationService payrollGenerationService, PayrollQueryService payrollQueryService,
 			PayrollBatchService payrollBatchService, TeacherPayrollService teacherPayrollService,
-			PayrollExcelExportService excelExportService, TeacherPayrollActionService teacherPayrollActionService) {
+			PayrollExcelExportService excelExportService, TeacherPayrollActionService teacherPayrollActionService,
+			PayrollPaymentService payrollPaymentService) {
 
 		this.payrollPreviewService = payrollPreviewService;
 
@@ -69,6 +75,9 @@ public class PayrollController {
 		this.excelExportService = excelExportService;
 
 		this.teacherPayrollActionService = teacherPayrollActionService;
+		
+        this.payrollPaymentService = payrollPaymentService;
+
 	}
 
 	/*
@@ -218,10 +227,15 @@ public class PayrollController {
 	@PostMapping("/regenerate")
 	public ResponseEntity<TeacherPaymentResponseDTO> regenerate(@RequestBody PayrollPreviewRequestDTO request) {
 
-		TeacherPaymentResponseDTO response =
-	            payrollGenerationService.regeneratePayroll(request);
+		TeacherPaymentResponseDTO response = payrollGenerationService.regeneratePayroll(request);
 
 		return ResponseEntity.ok(response);
 	}
+
+	@PostMapping("/pay")
+    public ResponseEntity<PayrollPaymentResponseDTO> processPayment(@RequestBody PayrollPaymentRequestDTO request) {
+        PayrollPaymentResponseDTO response = payrollPaymentService.processPayment(request);
+        return ResponseEntity.ok(response);
+    }
 	
 }

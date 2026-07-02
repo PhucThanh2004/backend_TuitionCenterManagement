@@ -18,6 +18,8 @@ import java.util.Optional;
 
 public interface SessionRepository extends JpaRepository<Session, Long> {
 	
+	 List<Session> findBySessionDate(LocalDate sessionDate);
+	
 	Optional<Session> findById (Long sessionId);
 	boolean existsByPlannedSessionDetailId(Long sessionDetailId);
 
@@ -196,4 +198,12 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
                                                    @Param("startDate") LocalDate startDate,
                                                    @Param("endDate") LocalDate endDate);
 
+ // Tìm sessions của subject trong khoảng thời gian
+    @Query("SELECT s FROM Session s WHERE s.subject.id = :subjectId AND s.sessionDate BETWEEN :startDate AND :endDate ORDER BY s.sessionDate ASC")
+    List<Session> findBySubjectIdAndSessionDateBetween(
+        @Param("subjectId") Long subjectId,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate
+    );
+    
 }

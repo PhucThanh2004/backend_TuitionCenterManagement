@@ -7,5 +7,6 @@ public enum TeacherPaymentStatus {
 	REQUEST_ADJUSTMENT,   
 	REJECTED,             
 	FINALIZED, 
-	PAID
+	PAID,
+	PARTIAL_PAID
 }

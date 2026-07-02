@@ -20,12 +20,13 @@ public class AttendanceResponseDTO {
     public record StudentAttendanceDTO(
         Long studentId, 
         String fullName, 
+        Boolean gender,            
+        String schoolName,   
         List<AttendanceItem> attendances,
         LocalDate enrollmentDate,   
         LocalDate deletedAt         
     ) {}
 
-    // Getter & Setter giữ nguyên
     public Long getSubjectId() {
         return subjectId;
     }

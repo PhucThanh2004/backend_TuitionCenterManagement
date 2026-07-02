@@ -27,6 +27,8 @@ public class PayrollListItemDTO {
 
 	private BigDecimal amount;
 
+	private BigDecimal paidAmount;
+	
 	private Integer totalSessions;
 
 	private TeacherPaymentStatus status;
@@ -34,6 +36,8 @@ public class PayrollListItemDTO {
 	private LocalDate paymentDate;
 
 	private Integer revisionNo;
+	
+	private String feedback;
 
 	public Integer getPaymentId() {
 		return paymentId;
@@ -75,6 +79,14 @@ public class PayrollListItemDTO {
 		this.amount = amount;
 	}
 
+	public BigDecimal getPaidAmount() {
+		return paidAmount;
+	}
+
+	public void setPaidAmount(BigDecimal paidAmount) {
+		this.paidAmount = paidAmount;
+	}
+
 	public Integer getTotalSessions() {
 		return totalSessions;
 	}
@@ -107,4 +119,13 @@ public class PayrollListItemDTO {
 		this.revisionNo = revisionNo;
 	}
 
+	public String getFeedback() {
+		return feedback;
+	}
+
+	public void setFeedback(String feedback) {
+		this.feedback = feedback;
+	}
+
+	
 }

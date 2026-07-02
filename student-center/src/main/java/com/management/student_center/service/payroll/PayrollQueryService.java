@@ -5,6 +5,7 @@ import com.management.student_center.dto.payroll.PayrollListItemDTO;
 import com.management.student_center.dto.payroll.PayrollSessionDetailDTO;
 import com.management.student_center.entity.TeacherPayment;
 import com.management.student_center.entity.TeacherPaymentDetail;
+import com.management.student_center.enums.TeacherPaymentStatus;
 import com.management.student_center.repository.TeacherPaymentDetailRepository;
 import com.management.student_center.repository.TeacherPaymentRepository;
 import org.springframework.stereotype.Service;
@@ -46,6 +47,8 @@ public class PayrollQueryService {
 
 		response.setAmount(payment.getAmount());
 
+		response.setPaidAmount(payment.getPaidAmount());
+		
 		response.setTotalSessions(payment.getTotalSessions());
 
 		response.setStatus(payment.getStatus());
@@ -60,11 +63,20 @@ public class PayrollQueryService {
 
 		response.setAdjustedAt(payment.getAdjustedAt());
 
+		response.setTeacherFeedback(payment.getTeacherFeedback());
+
+		if (payment.getStatus() == TeacherPaymentStatus.REJECTED
+				|| payment.getStatus() == TeacherPaymentStatus.REQUEST_ADJUSTMENT) {
+			response.setTeacherRejectedAt(payment.getUpdatedAt());
+		}
+
 		List<PayrollSessionDetailDTO> sessionDtos = new ArrayList<>();
 
 		for (TeacherPaymentDetail detail : details) {
 
 			PayrollSessionDetailDTO dto = new PayrollSessionDetailDTO();
+			
+			dto.setId(detail.getId());
 
 			dto.setSessionTeacherId(detail.getSessionTeacherInfo().getId());
 
@@ -116,6 +128,8 @@ public class PayrollQueryService {
 			dto.setYear(payment.getYear());
 
 			dto.setAmount(payment.getAmount());
+			
+			dto.setPaidAmount(payment.getPaidAmount());
 
 			dto.setTotalSessions(payment.getTotalSessions());
 
@@ -124,6 +138,11 @@ public class PayrollQueryService {
 			dto.setPaymentDate(payment.getPaymentDate());
 
 			dto.setRevisionNo(payment.getRevisionNo());
+
+			if (payment.getStatus() == TeacherPaymentStatus.REJECTED
+					|| payment.getStatus() == TeacherPaymentStatus.REQUEST_ADJUSTMENT) {
+				dto.setFeedback(payment.getTeacherFeedback());
+			}
 
 			return dto;
 		}).toList();

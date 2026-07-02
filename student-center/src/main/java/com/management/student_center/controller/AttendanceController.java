@@ -1,17 +1,24 @@
 package com.management.student_center.controller;
 
+import com.management.student_center.dto.AttendanceExportDTO;
+import com.management.student_center.dto.AttendanceImportDTO;
 import com.management.student_center.dto.AttendanceResponseDTO;
 import com.management.student_center.dto.AttendanceStudentDTO;
+import com.management.student_center.dto.ImportResultDTO;
 import com.management.student_center.dto.TodayAttendanceDTO;
 import com.management.student_center.dto.studentSubjectDto.AttendanceStatisticsDTO;
 import com.management.student_center.entity.Student;
+import com.management.student_center.service.AttendanceExportService;
 import com.management.student_center.service.AttendanceService;
 
+import java.io.IOException;
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +28,9 @@ import org.springframework.web.bind.annotation.*;
 public class AttendanceController {
 
     private final AttendanceService attendanceService;
+    
+    @Autowired
+    private AttendanceExportService attendanceExportService;
 
     public AttendanceController(AttendanceService attendanceService) {
         this.attendanceService = attendanceService;
@@ -83,6 +93,148 @@ public class AttendanceController {
         
         AttendanceStatisticsDTO statistics = attendanceService.getStudentAttendanceBySubject(studentId, subjectId);
         return ResponseEntity.ok(statistics);
+    }
+    
+    @GetMapping("/attendance/export/subject/{subjectId}")
+    public ResponseEntity<?> exportAttendanceBySubject(
+            @PathVariable Long subjectId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(defaultValue = "excel") String format) throws IOException {
+        
+        List<AttendanceExportDTO> data;
+        
+        // Nếu có startDate và endDate → export theo khoảng thời gian
+        if (startDate != null && endDate != null) {
+            data = attendanceService.exportAttendanceBySubjectAndDateRange(subjectId, startDate, endDate);
+        } else {
+            // Nếu không → export tất cả
+            data = attendanceService.exportAttendanceBySubject(subjectId);
+        }
+        
+        if (data.isEmpty()) {
+            return ResponseEntity.ok(Map.of(
+                "message", "Không có dữ liệu điểm danh để export",
+                "data", Collections.emptyList()
+            ));
+        }
+        
+        if ("excel".equalsIgnoreCase(format)) {
+            byte[] excelBytes = attendanceExportService.exportToExcel(data);
+            String filename = "attendance_subject_" + subjectId + 
+                (startDate != null ? "_" + startDate + "_to_" + endDate : "") + ".xlsx";
+            return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=" + filename)
+                .contentType(org.springframework.http.MediaType.APPLICATION_OCTET_STREAM)
+                .body(excelBytes);
+        } else if ("csv".equalsIgnoreCase(format)) {
+            String csvContent = attendanceExportService.exportToCsv(data);
+            String filename = "attendance_subject_" + subjectId + 
+                (startDate != null ? "_" + startDate + "_to_" + endDate : "") + ".csv";
+            return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=" + filename)
+                .contentType(org.springframework.http.MediaType.TEXT_PLAIN)
+                .body(csvContent);
+        } else {
+            return ResponseEntity.ok(Map.of(
+                "data", data,
+                "count", data.size(),
+                "message", "Export attendance data successfully"
+            ));
+        }
+    }
+    
+    // ==================== IMPORT ENDPOINT ====================
+    
+    /**
+     * Import attendance từ file
+     * POST /v1/api/attendance/import
+     * Body: multipart/form-data với file
+     */
+    @PostMapping("/attendance/import")
+    public ResponseEntity<?> importAttendance(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+            @RequestParam(defaultValue = "excel") String format) throws IOException {
+        
+        // Validate file
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "message", "File không được để trống"
+            ));
+        }
+        
+        // Validate file size (max 10MB)
+        if (file.getSize() > 10 * 1024 * 1024) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "message", "File quá lớn. Vui lòng chọn file nhỏ hơn 10MB"
+            ));
+        }
+        
+        // Parse file
+        List<AttendanceImportDTO> importData;
+        try {
+            if ("excel".equalsIgnoreCase(format)) {
+                importData = attendanceExportService.importFromExcel(file.getInputStream());
+            } else if ("csv".equalsIgnoreCase(format)) {
+                importData = attendanceExportService.importFromCsv(file.getInputStream());
+            } else {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "message", "Format không hỗ trợ. Chấp nhận: excel, csv"
+                ));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "message", "Không thể đọc file: " + e.getMessage()
+            ));
+        }
+        
+        // Validate data
+        if (importData.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "message", "File không chứa dữ liệu hợp lệ"
+            ));
+        }
+        
+        // Process import
+        ImportResultDTO result = attendanceService.importAttendance(importData);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", result.getMessage());
+        response.put("success_count", result.getSuccessCount());
+        response.put("error_count", result.getErrorCount());
+        response.put("total_records", result.getTotalRecords());
+        response.put("errors", result.getErrors());
+        
+        if (result.getErrorCount() > 0) {
+            response.put("status", "partial_success");
+        } else {
+            response.put("status", "success");
+        }
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    // ==================== TEMPLATE DOWNLOAD ====================
+    
+    /**
+     * Download template import
+     */
+    @GetMapping("/attendance/import/template")
+    public ResponseEntity<?> downloadImportTemplate(
+            @RequestParam(defaultValue = "excel") String format) throws IOException {
+        
+        byte[] templateBytes = attendanceExportService.generateImportTemplate(format);
+        
+        String extension = "excel".equalsIgnoreCase(format) ? "xlsx" : "csv";
+        String filename = "attendance_import_template." + extension;
+        String contentType = "excel".equalsIgnoreCase(format) ? 
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : 
+            "text/csv";
+        
+        return ResponseEntity.ok()
+            .header("Content-Disposition", "attachment; filename=" + filename)
+            .header("Content-Type", contentType)
+            .body(templateBytes);
     }
 }
 

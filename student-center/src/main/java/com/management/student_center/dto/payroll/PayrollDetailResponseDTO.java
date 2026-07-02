@@ -19,6 +19,8 @@ public class PayrollDetailResponseDTO {
     private Integer year;
 
     private BigDecimal amount;
+    
+    private BigDecimal paidAmount;
 
     private Integer totalSessions;
 
@@ -36,6 +38,12 @@ public class PayrollDetailResponseDTO {
 
     private LocalDateTime adjustedAt;
 
+    private String teacherFeedback;
+
+    private LocalDateTime teacherRejectedAt;
+
+    private List<FeedbackHistoryDTO> feedbackHistory;
+    
 	public Integer getPaymentId() {
 		return paymentId;
 	}
@@ -82,6 +90,14 @@ public class PayrollDetailResponseDTO {
 
 	public void setAmount(BigDecimal amount) {
 		this.amount = amount;
+	}
+
+	public BigDecimal getPaidAmount() {
+		return paidAmount;
+	}
+
+	public void setPaidAmount(BigDecimal paidAmount) {
+		this.paidAmount = paidAmount;
 	}
 
 	public Integer getTotalSessions() {
@@ -146,6 +162,30 @@ public class PayrollDetailResponseDTO {
 
 	public void setAdjustedAt(LocalDateTime adjustedAt) {
 		this.adjustedAt = adjustedAt;
+	}
+
+	public String getTeacherFeedback() {
+		return teacherFeedback;
+	}
+
+	public void setTeacherFeedback(String teacherFeedback) {
+		this.teacherFeedback = teacherFeedback;
+	}
+
+	public LocalDateTime getTeacherRejectedAt() {
+		return teacherRejectedAt;
+	}
+
+	public void setTeacherRejectedAt(LocalDateTime teacherRejectedAt) {
+		this.teacherRejectedAt = teacherRejectedAt;
+	}
+
+	public List<FeedbackHistoryDTO> getFeedbackHistory() {
+		return feedbackHistory;
+	}
+
+	public void setFeedbackHistory(List<FeedbackHistoryDTO> feedbackHistory) {
+		this.feedbackHistory = feedbackHistory;
 	}
 	
 }

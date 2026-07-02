@@ -9,6 +9,8 @@ import java.time.LocalTime;
 
 public class PayrollSessionDetailDTO {
 
+	private Long id;
+	
 	private Long sessionTeacherId;
 
 	private Long sessionId;
@@ -36,6 +38,14 @@ public class PayrollSessionDetailDTO {
 	private String note;
 
 	public PayrollSessionDetailDTO() {
+	}
+	
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
 	}
 
 	public Long getSessionTeacherId() {
