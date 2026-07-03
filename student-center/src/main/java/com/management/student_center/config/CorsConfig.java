@@ -14,7 +14,17 @@ public class CorsConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cors = new CorsConfiguration();
-        cors.setAllowedOrigins(Arrays.asList("http://localhost:5173"));
+
+        //Thêm domain
+        cors.setAllowedOrigins(Arrays.asList(
+            "https://edu-center-liard.vercel.app",
+            "https://educenter-amber.vercel.app",
+            "https://educenter-rouge.vercel.app",
+            "https://educenter-omega.vercel.app",
+            "https://edu-center.vercel.app",
+            "http://localhost:5173",
+            "http://localhost:3000"
+        ));
         cors.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         cors.setAllowedHeaders(Arrays.asList("*"));
         cors.setAllowCredentials(true); // QUAN TRỌNG
