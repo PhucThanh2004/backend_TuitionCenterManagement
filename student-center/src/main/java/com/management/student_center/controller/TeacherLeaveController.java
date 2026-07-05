@@ -38,6 +38,7 @@ public class TeacherLeaveController {
 	private final TeacherLeaveService leaveService;
 	private final TeacherRepository teacherRepository; // Thêm dependency
 	private final UserRepository userRepository;
+
 	public TeacherLeaveController(TeacherLeaveService leaveService, TeacherRepository teacherRepository,
 			UserRepository userRepository) {
 		this.leaveService = leaveService;
@@ -49,11 +50,48 @@ public class TeacherLeaveController {
 	// LẤY THÔNG TIN NGƯỜI DÙNG HIỆN TẠI TỪ SECURITY CONTEXT
 	// =========================================================
 
-	/*private User getCurrentUser() {
+	/*
+	 * private User getCurrentUser() { Authentication auth =
+	 * SecurityContextHolder.getContext().getAuthentication(); if (auth != null &&
+	 * auth.getPrincipal() instanceof User) { return (User) auth.getPrincipal(); }
+	 * throw new RuntimeException("Không tìm thấy thông tin người dùng"); }
+	 * 
+	 * private Long getCurrentUserId() { return getCurrentUser().getId(); }
+	 * 
+	 * // Lấy teacherId thực tế (không phải userId) private Long
+	 * getCurrentTeacherId() { User user = getCurrentUser(); Teacher teacher =
+	 * teacherRepository.findByUserInfoId(user.getId()) .orElseThrow(() -> new
+	 * RuntimeException("Không tìm thấy giáo viên tương ứng với người dùng"));
+	 * return teacher.getId(); }
+	 * 
+	 * // Trong file TeacherLeaveController.java, tìm phương thức
+	 * getCurrentUserRole() private String getCurrentUserRole() { Authentication
+	 * auth = SecurityContextHolder.getContext().getAuthentication(); String
+	 * roleCode = auth.getAuthorities().stream().findFirst().map(a ->
+	 * a.getAuthority()).orElse("TEACHER"); // Map role code sang tên phù hợp với
+	 * logic trong service if ("R0".equals(roleCode)) { return "ADMIN"; } else if
+	 * ("R1".equals(roleCode)) { return "TEACHER"; } else { return "STUDENT"; } }
+	 */
+	private User getCurrentUser() {
 		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-		if (auth != null && auth.getPrincipal() instanceof User) {
-			return (User) auth.getPrincipal();
+		if (auth == null || auth.getPrincipal() == null) {
+			throw new RuntimeException("Không tìm thấy thông tin người dùng");
 		}
+
+		Object principal = auth.getPrincipal();
+
+		// Nếu principal là String (email) - case 1
+		if (principal instanceof String) {
+			String email = (String) principal;
+			return userRepository.findByEmail(email)
+					.orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với email: " + email));
+		}
+
+		// Nếu principal là User (case cũ)
+		if (principal instanceof User) {
+			return (User) principal;
+		}
+
 		throw new RuntimeException("Không tìm thấy thông tin người dùng");
 	}
 
@@ -61,65 +99,25 @@ public class TeacherLeaveController {
 		return getCurrentUser().getId();
 	}
 
-	// Lấy teacherId thực tế (không phải userId)
+	private String getCurrentUserRole() {
+		User user = getCurrentUser();
+		String roleCode = user.getRoleId();
+		if ("R0".equals(roleCode))
+			return "ADMIN";
+		if ("R1".equals(roleCode))
+			return "TEACHER";
+		return "STUDENT";
+	}
+
 	private Long getCurrentTeacherId() {
 		User user = getCurrentUser();
+		if ("R0".equals(user.getRoleId())) {
+			return null;
+		}
 		Teacher teacher = teacherRepository.findByUserInfoId(user.getId())
 				.orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên tương ứng với người dùng"));
 		return teacher.getId();
 	}
-
-	// Trong file TeacherLeaveController.java, tìm phương thức getCurrentUserRole()
-	private String getCurrentUserRole() {
-		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-		String roleCode = auth.getAuthorities().stream().findFirst().map(a -> a.getAuthority()).orElse("TEACHER");
-		// Map role code sang tên phù hợp với logic trong service
-		if ("R0".equals(roleCode)) {
-			return "ADMIN";
-		} else if ("R1".equals(roleCode)) {
-			return "TEACHER";
-		} else {
-			return "STUDENT";
-		}
-	}
-	*/
-    private User getCurrentUser() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || auth.getPrincipal() == null) {
-            throw new RuntimeException("Không tìm thấy thông tin người dùng");
-        }
-        
-        String email = auth.getName();
-        if (email == null || "anonymousUser".equals(email)) {
-            throw new RuntimeException("Không tìm thấy thông tin người dùng");
-        }
-        
-        return userRepository.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với email: " + email));
-    }
-
-    private Long getCurrentUserId() {
-        return getCurrentUser().getId();
-    }
-
-    private String getCurrentUserRole() {
-        User user = getCurrentUser();
-        String roleCode = user.getRoleId();
-        if ("R0".equals(roleCode)) return "ADMIN";
-        if ("R1".equals(roleCode)) return "TEACHER";
-        return "STUDENT";
-    }
-
-    private Long getCurrentTeacherId() {
-        User user = getCurrentUser();
-        if ("R0".equals(user.getRoleId())) {
-            return null;
-        }
-        Teacher teacher = teacherRepository.findByUserInfoId(user.getId())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên tương ứng với người dùng"));
-        return teacher.getId();
-    }
-
 	// =========================================================
 	// TẠO ĐƠN NGHỈ MỚI
 	// =========================================================
