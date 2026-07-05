@@ -17,6 +17,7 @@ import com.management.student_center.entity.Teacher;
 import com.management.student_center.entity.TeacherLeave;
 import com.management.student_center.entity.User;
 import com.management.student_center.repository.TeacherRepository;
+import com.management.student_center.repository.UserRepository;
 import com.management.student_center.service.TeacherLeaveService;
 import com.management.student_center.dto.leave.AvailableReplacementTeacherDTO;
 import org.springframework.data.domain.Page;
@@ -36,17 +37,19 @@ public class TeacherLeaveController {
 
 	private final TeacherLeaveService leaveService;
 	private final TeacherRepository teacherRepository; // Thêm dependency
-
-	public TeacherLeaveController(TeacherLeaveService leaveService, TeacherRepository teacherRepository) {
+	private final UserRepository userRepository;
+	public TeacherLeaveController(TeacherLeaveService leaveService, TeacherRepository teacherRepository,
+			UserRepository userRepository) {
 		this.leaveService = leaveService;
 		this.teacherRepository = teacherRepository;
+		this.userRepository = userRepository;
 	}
 
 	// =========================================================
 	// LẤY THÔNG TIN NGƯỜI DÙNG HIỆN TẠI TỪ SECURITY CONTEXT
 	// =========================================================
 
-	private User getCurrentUser() {
+	/*private User getCurrentUser() {
 		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 		if (auth != null && auth.getPrincipal() instanceof User) {
 			return (User) auth.getPrincipal();
@@ -79,6 +82,43 @@ public class TeacherLeaveController {
 			return "STUDENT";
 		}
 	}
+	*/
+    private User getCurrentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getPrincipal() == null) {
+            throw new RuntimeException("Không tìm thấy thông tin người dùng");
+        }
+        
+        String email = auth.getName();
+        if (email == null || "anonymousUser".equals(email)) {
+            throw new RuntimeException("Không tìm thấy thông tin người dùng");
+        }
+        
+        return userRepository.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với email: " + email));
+    }
+
+    private Long getCurrentUserId() {
+        return getCurrentUser().getId();
+    }
+
+    private String getCurrentUserRole() {
+        User user = getCurrentUser();
+        String roleCode = user.getRoleId();
+        if ("R0".equals(roleCode)) return "ADMIN";
+        if ("R1".equals(roleCode)) return "TEACHER";
+        return "STUDENT";
+    }
+
+    private Long getCurrentTeacherId() {
+        User user = getCurrentUser();
+        if ("R0".equals(user.getRoleId())) {
+            return null;
+        }
+        Teacher teacher = teacherRepository.findByUserInfoId(user.getId())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên tương ứng với người dùng"));
+        return teacher.getId();
+    }
 
 	// =========================================================
 	// TẠO ĐƠN NGHỈ MỚI
