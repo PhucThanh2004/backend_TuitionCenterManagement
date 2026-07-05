@@ -52,14 +52,16 @@ public class SecurityConfig {
 		System.out.println("=== SecurityConfig === Configuring security filter chain");
 
 		http.csrf(csrf -> csrf.disable()); // tắt CSRF
-		http.cors(cors -> cors.configurationSource(corsConfigurationSource)); // CHỈNH ĐÚNG
+		http.cors(cors -> cors.configurationSource(corsConfigurationSource()));
 
 		http.authorizeHttpRequests(auth -> auth.requestMatchers("/uploads/**").permitAll()
 				.requestMatchers(HttpMethod.POST, "/v1/api/login").permitAll().requestMatchers("/v1/api/logout")
 				.permitAll().requestMatchers("/v1/api/forgot-password").permitAll() // gửi OTP
 				.requestMatchers("/v1/api/forgot-password/verify-otp").permitAll() // verify OTP
-				.requestMatchers("/v1/api/reset-password").permitAll().requestMatchers("/v1/api/subjects/**")
-				.permitAll().requestMatchers("/v1/api/subjects").permitAll().requestMatchers("/v1/api/teachers/**")
+				.requestMatchers("/v1/api/reset-password").permitAll().requestMatchers("/v1/api/subjects/**").permitAll()
+				.requestMatchers(HttpMethod.GET, "/v1/api/subjects").permitAll()
+				.requestMatchers(HttpMethod.POST, "/v1/api/subjects").permitAll()
+				.requestMatchers("/v1/api/teachers/**")
 				.permitAll().requestMatchers("/v1/api/session/**").permitAll().requestMatchers("/v1/api/schedule/**")
 				.permitAll().requestMatchers("/v1/api/rooms/**").permitAll()
 				.requestMatchers("/v1/api/subject-schedules").permitAll().requestMatchers("/v1/api/subject-students")
