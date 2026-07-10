@@ -57,7 +57,9 @@ public class SecurityConfig {
 		http.authorizeHttpRequests(auth -> auth.requestMatchers("/uploads/**").permitAll()
 				.requestMatchers(HttpMethod.POST, "/v1/api/login").permitAll().requestMatchers("/v1/api/logout")
 				.permitAll().requestMatchers("/v1/api/forgot-password").permitAll() // gửi OTP
+				.requestMatchers("/v1/api/assistant/**").permitAll()
 				.requestMatchers("/v1/api/forgot-password/verify-otp").permitAll() // verify OTP
+				.requestMatchers("/v1/api/consultations/**").permitAll()
 				.requestMatchers("/v1/api/reset-password").permitAll().requestMatchers("/v1/api/subjects/**").permitAll()
 				.requestMatchers(HttpMethod.GET, "/v1/api/subjects").permitAll()
 				.requestMatchers(HttpMethod.POST, "/v1/api/subjects").permitAll()

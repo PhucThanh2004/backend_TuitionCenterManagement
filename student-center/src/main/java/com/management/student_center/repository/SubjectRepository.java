@@ -58,12 +58,18 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
 			""")
 	List<Object[]> countSubjectsByLevel();
 
+	List<Subject> findByBillingType(BillingType billingType);
+
+	List<Subject> findByPaymentPlanType(PaymentPlanType paymentPlanType);
+
 	
-	List<Subject>
-	findByBillingType(BillingType billingType);
-	
-	List<Subject>
-	findByPaymentPlanType(
-	    PaymentPlanType paymentPlanType
-	);
+	//Mới thêm
+	@Query("""
+			    SELECT DISTINCT s
+			    FROM Subject s
+			    LEFT JOIN FETCH s.subjectType
+			    LEFT JOIN FETCH s.curriculums
+			    WHERE s.status = 'active'
+			""")
+	List<Subject> findAllPublicSubjects();
 }

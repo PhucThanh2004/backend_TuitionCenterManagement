@@ -34,5 +34,13 @@ public interface TeacherSubjectRepository extends JpaRepository<TeacherSubject, 
 
 	List<TeacherSubject> findAllBySubjectId(Long subjectId);
 
-	
+	//Mới thêm
+	@Query("""
+			    SELECT ts
+			    FROM TeacherSubject ts
+			    JOIN FETCH ts.teacher t
+			    JOIN FETCH t.userInfo u
+			    JOIN FETCH ts.subject s
+			""")
+	List<TeacherSubject> findAllWithTeacherAndSubject();
 }

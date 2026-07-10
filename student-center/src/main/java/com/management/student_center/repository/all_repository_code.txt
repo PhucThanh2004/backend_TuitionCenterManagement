@@ -1,0 +1,1595 @@
+package com.management.student_center.repository;
+
+import com.management.student_center.entity.ActivityLog;
+
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.List;
+
+public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> {
+
+    List<ActivityLog> findByOrderByCreatedAtDesc(Pageable pageable);
+    
+    @Query("""
+    	    SELECT a
+    	    FROM ActivityLog a
+
+    	    LEFT JOIN Announcement an
+    	        ON a.targetId = an.id
+    	        AND a.targetType = 'ANNOUNCEMENT'
+
+    	    WHERE
+
+    	        a.user.id = :userId
+
+    	        OR (
+
+    	            a.targetType = 'ANNOUNCEMENT'
+
+    	            AND an.status = 'active'
+
+    	            AND a.actionType IN ('CREATE', 'UPDATE')
+
+    	        )
+
+    	    ORDER BY a.createdAt DESC
+    	""")
+    	List<ActivityLog> getTeacherActivities(
+    	        @Param("userId") Long userId,
+    	        Pageable pageable
+    	);
+    
+    long countByUserIdAndIsReadFalse(Long userId);
+
+    @Modifying
+    @Query("UPDATE ActivityLog a SET a.isRead = true WHERE a.user.id = :userId AND a.isRead = false")
+    void markAllAsReadByUser(@Param("userId") Long userId);
+
+    // Lấy danh sách activity chưa đọc của user
+    @Query("SELECT a FROM ActivityLog a WHERE a.user.id = :userId AND a.isRead = false ORDER BY a.createdAt DESC")
+    List<ActivityLog> findUnreadByUserId(@Param("userId") Long userId, Pageable pageable);
+
+}package com.management.student_center.repository;
+
+import com.management.student_center.entity.Address;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface AddressRepository extends JpaRepository<Address, Long> {
+    // Để trống là OK, JpaRepository đã đủ
+}package com.management.student_center.repository;
+
+import com.management.student_center.entity.Announcement;
+import com.management.student_center.entity.AnnouncementLike;
+import com.management.student_center.entity.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.Optional;
+
+public interface AnnouncementLikeRepository extends JpaRepository<AnnouncementLike, Long> {
+    
+    Optional<AnnouncementLike> findByAnnouncementAndUser(Announcement announcement, User user);
+    
+    @Query("SELECT COUNT(l) FROM AnnouncementLike l WHERE l.announcement.id = :announcementId")
+    long countByAnnouncementId(@Param("announcementId") Long announcementId);
+    
+    @Modifying
+    @Transactional
+    void deleteByAnnouncementAndUser(Announcement announcement, User user);
+    
+    boolean existsByAnnouncementAndUser(Announcement announcement, User user);
+    
+    // Lấy danh sách người dùng đã like một announcement
+    Page<AnnouncementLike> findByAnnouncementId(Long announcementId, Pageable pageable);
+    
+    // Xóa tất cả likes của một announcement (khi xóa bài viết)
+    @Modifying
+    @Transactional
+    void deleteByAnnouncement(Announcement announcement);
+}package com.management.student_center.repository;
+
+import com.management.student_center.entity.Announcement;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface AnnouncementRepository extends JpaRepository<Announcement, Long> {
+}
+package com.management.student_center.repository;
+
+import com.management.student_center.entity.Announcement;
+import com.management.student_center.entity.AnnouncementView;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDateTime;
+import java.util.Optional;
+
+public interface AnnouncementViewRepository extends JpaRepository<AnnouncementView, Long> {
+    
+    @Query("SELECT COUNT(v) FROM AnnouncementView v WHERE v.announcement.id = :announcementId")
+    long countByAnnouncementId(@Param("announcementId") Long announcementId);
+    
+    @Query("SELECT COUNT(DISTINCT v.ipAddress) FROM AnnouncementView v WHERE v.announcement.id = :announcementId")
+    long countUniqueViewsByAnnouncementId(@Param("announcementId") Long announcementId);
+    
+    // Kiểm tra xem IP đã xem trong khoảng thời gian gần đây chưa (tránh spam view)
+    Optional<AnnouncementView> findByAnnouncementAndIpAddressAndViewedAtAfter(
+        Announcement announcement, String ipAddress, LocalDateTime since);
+    
+    // Thống kê view theo ngày
+    @Query("SELECT DATE(v.viewedAt), COUNT(v) FROM AnnouncementView v " +
+           "WHERE v.announcement.id = :announcementId " +
+           "GROUP BY DATE(v.viewedAt) " +
+           "ORDER BY DATE(v.viewedAt) DESC")
+    java.util.List<Object[]> countViewsByDay(@Param("announcementId") Long announcementId);
+    
+    // Xóa tất cả views của một announcement
+    @Modifying
+    @Transactional
+    void deleteByAnnouncement(Announcement announcement);
+}package com.management.student_center.repository;
+
+import com.management.student_center.entity.Assignment;
+import com.management.student_center.entity.Session;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+
+public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
+    List<Assignment> findBySession_Subject_IdOrderByDueDateAsc(Long subjectId);
+}
+	package com.management.student_center.repository;
+	
+	import com.management.student_center.entity.AttendanceStudent;
+	import com.management.student_center.entity.Session;
+	import com.management.student_center.entity.Student;
+	import org.springframework.data.jpa.repository.JpaRepository;
+	
+	import java.util.List;
+	import java.util.Optional;
+	
+	import org.springframework.data.jpa.repository.Query;
+	import org.springframework.data.repository.query.Param;
+	import java.time.LocalDate;
+	
+	public interface AttendanceStudentRepository extends JpaRepository<AttendanceStudent, Long> {
+	
+	    Optional<AttendanceStudent> findBySessionAndStudent(Session session, Student student);
+	
+	    List<AttendanceStudent> findAllByStudentAndSessionIn(Student student, List<Session> sessions);
+	    
+	    @Query("SELECT ats FROM AttendanceStudent ats " +
+	            "JOIN ats.session s " +
+	            "WHERE ats.student.id = :studentId " +
+	            "AND s.subject.id = :subjectId " +
+	            "AND s.sessionDate BETWEEN :startDate AND :endDate " +
+	            "AND s.status = 'completed' " +
+	            "AND (ats.status = 'present' OR ats.status = 'late')")
+	     List<AttendanceStudent> findValidAttendanceForTuition(
+	             @Param("studentId") Long studentId,
+	             @Param("subjectId") Long subjectId,
+	             @Param("startDate") LocalDate startDate,
+	             @Param("endDate") LocalDate endDate
+	     );
+	    
+	    // Lấy tất cả học sinh vắng hoặc đi trễ trong khoảng thời gian sessionDate
+	    @Query("SELECT a FROM AttendanceStudent a " +
+	           "WHERE a.status IN ('absent', 'late') " +
+	           "AND a.session.sessionDate BETWEEN :startDate AND :endDate")
+	    List<AttendanceStudent> findAbsentOrLateBetweenDates(@Param("startDate") LocalDate startDate,
+	                                                        @Param("endDate") LocalDate endDate);
+	    
+	    List<AttendanceStudent> findAllBySessionIn(List<Session> sessions);
+	    
+	    List<AttendanceStudent> findBySession(Session session);
+	    
+	    // Optional: Kiểm tra xem có attendance present/late không
+	    boolean existsBySessionAndStatusIn(Session session, List<String> statuses);
+	    
+	    // Lấy tất cả attendance của student theo subject
+	    @Query("SELECT a FROM AttendanceStudent a WHERE a.student.id = :studentId AND a.session.subject.id = :subjectId ORDER BY a.session.sessionDate DESC, a.session.startTime DESC")
+	    List<AttendanceStudent> findByStudentIdAndSubjectId(@Param("studentId") Long studentId, @Param("subjectId") Long subjectId);
+	    
+	    // Đếm tổng số buổi tham gia môn học (các buổi có attendance record)
+	    @Query("SELECT COUNT(DISTINCT a.session) FROM AttendanceStudent a WHERE a.student.id = :studentId AND a.session.subject.id = :subjectId")
+	    Integer countTotalSessionsByStudentAndSubject(@Param("studentId") Long studentId, @Param("subjectId") Long subjectId);
+	    
+	    // Đếm số buổi có mặt
+	    @Query("SELECT COUNT(a) FROM AttendanceStudent a WHERE a.student.id = :studentId AND a.session.subject.id = :subjectId AND a.status = 'present'")
+	    Integer countPresentByStudentAndSubject(@Param("studentId") Long studentId, @Param("subjectId") Long subjectId);
+	    
+	    // Đếm số buổi vắng
+	    @Query("SELECT COUNT(a) FROM AttendanceStudent a WHERE a.student.id = :studentId AND a.session.subject.id = :subjectId AND a.status = 'absent'")
+	    Integer countAbsentByStudentAndSubject(@Param("studentId") Long studentId, @Param("subjectId") Long subjectId);
+	    
+	    // Đếm số buổi trễ
+	    @Query("SELECT COUNT(a) FROM AttendanceStudent a WHERE a.student.id = :studentId AND a.session.subject.id = :subjectId AND a.status = 'late'")
+	    Integer countLateByStudentAndSubject(@Param("studentId") Long studentId, @Param("subjectId") Long subjectId);
+	    
+	    // Lấy attendance theo khoảng thời gian
+	    @Query("SELECT a FROM AttendanceStudent a WHERE a.session.sessionDate BETWEEN :startDate AND :endDate")
+	    List<AttendanceStudent> findBySessionSessionDateBetween(@Param("startDate") LocalDate startDate, 
+	                                                             @Param("endDate") LocalDate endDate);
+	    
+	    // Lấy attendance theo student
+	    List<AttendanceStudent> findByStudentId(Long studentId);
+	    
+	
+	}
+package com.management.student_center.repository;
+
+import com.management.student_center.entity.Curriculum;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+
+@Repository
+public interface CurriculumRepository extends JpaRepository<Curriculum, Long> {
+    List<Curriculum> findBySubjectId(Long subjectId);
+    List<Curriculum> findBySubjectIdOrderByOrderIndex(Long subjectId);
+    List<Curriculum> findByStatus(String status);
+}package com.management.student_center.repository;
+
+import com.management.student_center.entity.Device;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
+
+public interface DeviceRepository extends JpaRepository<Device, Long> {
+    List<Device> findByRoomId(Long roomId);
+    
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM Device d WHERE d.room.id = :roomId")
+    void deleteByRoomId(Long roomId);
+}package com.management.student_center.repository;
+
+import com.management.student_center.entity.LeaveAffectedSession;
+import com.management.student_center.entity.LeaveAffectedSession.Status;
+import com.management.student_center.entity.LeaveAffectedSession.ReplacementResponse;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.List;
+import java.util.Optional;
+
+public interface LeaveAffectedSessionRepository extends JpaRepository<LeaveAffectedSession, Long> {
+	Optional<LeaveAffectedSession> findByLeaveIdAndSessionId(Long leaveId, Long sessionId);
+
+	// ================= BASIC =================
+	List<LeaveAffectedSession> findByLeaveId(Long leaveId);
+
+	@Modifying
+	@Transactional
+	void deleteByLeaveId(Long leaveId);
+
+	// ================= ADMIN =================
+
+	/**
+	 * Các session chưa xử lý xong
+	 */
+	List<LeaveAffectedSession> findByStatus(Status status);
+
+	/**
+	 * Các session đang chờ giáo viên phản hồi
+	 */
+	List<LeaveAffectedSession> findByReplacementResponse(ReplacementResponse replacementResponse);
+
+	/**
+	 * Session bị teacher từ chối
+	 */
+	List<LeaveAffectedSession> findByReplacementResponseAndStatus(ReplacementResponse replacementResponse,
+			Status status);
+
+	// ================= TEACHER =================
+
+	/**
+	 * Session được assign cho teacher
+	 */
+	List<LeaveAffectedSession> findByReplacementTeacherId(Integer replacementTeacherId);
+
+	/*
+	 * Session teacher chưa phản hồi
+	 */
+	List<LeaveAffectedSession> findByReplacementTeacherIdAndReplacementResponse(Integer replacementTeacherId,
+			ReplacementResponse replacementResponse);
+
+	// ================= PROCESS CHECK =================
+	long countByLeaveIdAndStatus(Long leaveId, Status status);
+
+	boolean existsByLeaveIdAndStatus(Long leaveId, Status status);
+
+	@Query("""
+			    SELECT CASE WHEN COUNT(las) > 0 THEN true ELSE false END
+			    FROM LeaveAffectedSession las
+			    WHERE las.replacementTeacherId = :teacherId
+			    AND las.status = 'PENDING'
+			    AND las.session.sessionDate = :date
+			    AND (
+			        las.session.startTime < :endTime
+			        AND las.session.endTime > :startTime
+			    )
+			""")
+	boolean existsReplacementConflict(@Param("teacherId") Integer teacherId, @Param("date") LocalDate date,
+			@Param("startTime") LocalTime startTime, @Param("endTime") LocalTime endTime);
+	
+	
+}package com.management.student_center.repository;
+
+import com.management.student_center.entity.Material;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface MaterialRepository extends JpaRepository<Material, Long> {
+    List<Material> findBySubjectIdOrderByUploadedAtDesc(Long subjectId);
+}
+package com.management.student_center.repository;
+
+import com.management.student_center.entity.ParentContact;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+
+@Repository
+public interface ParentContactRepository extends JpaRepository<ParentContact, Long> {
+    void deleteByStudentId(Long studentId);
+    List<ParentContact> findByStudentId(Long studentId);
+}package com.management.student_center.repository;
+
+import com.management.student_center.entity.Room;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface RoomRepository extends JpaRepository<Room, Long> {
+}
+package com.management.student_center.repository;
+
+import com.management.student_center.entity.SessionDetail;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+
+@Repository
+public interface SessionDetailRepository extends JpaRepository<SessionDetail, Long> {
+    
+    // Lấy danh sách theo display_order (thứ tự hiển thị)
+    List<SessionDetail> findByCurriculumIdOrderByDisplayOrderAsc(Long curriculumId);
+    
+    // Lấy danh sách theo session_number (dùng cho trường công hoặc copy)
+    List<SessionDetail> findByCurriculumIdOrderBySessionNumberAsc(Long curriculumId);
+    
+    // Lấy danh sách đơn giản
+    List<SessionDetail> findByCurriculumId(Long curriculumId);
+    
+    // Kiểm tra session_number đã tồn tại
+    boolean existsByCurriculumIdAndSessionNumber(Long curriculumId, Integer sessionNumber);
+    
+    // Đếm số lượng theo curriculum
+    long countByCurriculumId(Long curriculumId);
+    
+    // Lấy max display_order
+    @Query("SELECT MAX(s.displayOrder) FROM SessionDetail s WHERE s.curriculum.id = :curriculumId")
+    Integer findMaxDisplayOrderByCurriculumId(@Param("curriculumId") Long curriculumId);
+    
+    // Đếm số lượng đã được sử dụng trong session thực tế
+    @Query("SELECT COUNT(sd) FROM SessionDetail sd WHERE sd.curriculum.id = :curriculumId AND sd.id IN (SELECT sess.plannedSessionDetail.id FROM Session sess)")
+    long countByCurriculumIdAndIsUsed(@Param("curriculumId") Long curriculumId);
+}package com.management.student_center.repository;
+
+import com.management.student_center.dto.RoomScheduleDTO;
+import com.management.student_center.dto.UpcomingSessionDTO;
+import com.management.student_center.entity.Room;
+import com.management.student_center.entity.Session;
+import com.management.student_center.entity.Subject;
+
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.List;
+import java.util.Optional;
+
+public interface SessionRepository extends JpaRepository<Session, Long> {
+	
+	 List<Session> findBySessionDate(LocalDate sessionDate);
+	
+	Optional<Session> findById (Long sessionId);
+	boolean existsByPlannedSessionDetailId(Long sessionDetailId);
+
+	List<Session> findBySubject_IdOrderBySessionDateAsc(Long subjectId);
+
+	Optional<Session> findBySubjectIdAndSessionDate(Long subjectId, LocalDate sessionDate);
+
+	@Query("SELECT s FROM Session s LEFT JOIN FETCH s.room r LEFT JOIN FETCH s.schedule sch "
+			+ "WHERE s.subject.id = :subjectId " + "ORDER BY s.sessionDate ASC, s.startTime ASC")
+	List<Session> findBySubjectIdWithRoomAndScheduleOrder(@Param("subjectId") Long subjectId);
+
+	@Query("SELECT s FROM Session s LEFT JOIN FETCH s.room r LEFT JOIN FETCH s.schedule sch WHERE s.id = :id")
+	Session findByIdWithRoomAndSchedule(@Param("id") Long id);
+
+	// --- Method check session tồn tại ---
+	@Query("SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END " + "FROM Session s " + "WHERE s.subject = :subject "
+			+ "AND s.sessionDate = :sessionDate " + "AND s.startTime = :startTime")
+	boolean existsBySubjectAndSessionDateAndStartTime(@Param("subject") Subject subject,
+			@Param("sessionDate") LocalDate sessionDate, @Param("startTime") LocalTime startTime);
+
+	// Kiểm tra trùng giờ phòng
+	@Query("SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END " + "FROM Session s " + "WHERE s.room = :room "
+			+ "AND s.sessionDate = :date " + "AND (" + "  (s.startTime <= :start AND s.endTime > :start) OR "
+			+ "  (s.startTime < :end AND s.endTime >= :end) OR " + "  (s.startTime >= :start AND s.endTime <= :end)"
+			+ ")")
+	boolean existsByRoomAndDateAndTimeOverlap(@Param("room") Room room, @Param("date") LocalDate date,
+			@Param("start") LocalTime start, @Param("end") LocalTime end);
+
+	// Kiểm tra trùng giờ lớp
+	@Query("SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END " + "FROM Session s " + "WHERE s.subject = :subject "
+			+ "AND s.sessionDate = :date " + "AND (" + "  (s.startTime <= :start AND s.endTime > :start) OR "
+			+ "  (s.startTime < :end AND s.endTime >= :end) OR " + "  (s.startTime >= :start AND s.endTime <= :end)"
+			+ ")")
+	boolean existsBySubjectAndDateAndTimeOverlap(@Param("subject") Subject subject, @Param("date") LocalDate date,
+			@Param("start") LocalTime start, @Param("end") LocalTime end);
+
+	// Kiểm tra trùng giờ phòng, trừ chính session
+	@Query("SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END " + "FROM Session s " + "WHERE s.room = :room "
+			+ "AND s.sessionDate = :date " + "AND s.id <> :excludeId " + "AND ("
+			+ "  (s.startTime <= :start AND s.endTime > :start) OR "
+			+ "  (s.startTime < :end AND s.endTime >= :end) OR " + "  (s.startTime >= :start AND s.endTime <= :end)"
+			+ ")")
+	boolean existsByRoomAndDateAndTimeOverlapExcludingId(@Param("room") Room room, @Param("date") LocalDate date,
+			@Param("start") LocalTime start, @Param("end") LocalTime end, @Param("excludeId") Long excludeId);
+
+	// Kiểm tra trùng giờ lớp, trừ chính session
+	@Query("SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END " + "FROM Session s " + "WHERE s.subject = :subject "
+			+ "AND s.sessionDate = :date " + "AND s.id <> :excludeId " + "AND ("
+			+ "  (s.startTime <= :start AND s.endTime > :start) OR "
+			+ "  (s.startTime < :end AND s.endTime >= :end) OR " + "  (s.startTime >= :start AND s.endTime <= :end)"
+			+ ")")
+	boolean existsBySubjectAndDateAndTimeOverlapExcludingId(@Param("subject") Subject subject,
+			@Param("date") LocalDate date, @Param("start") LocalTime start, @Param("end") LocalTime end,
+			@Param("excludeId") Long excludeId);
+
+	// Query thay thế cho đoạn logic phức tạp trong Node.js:
+	// Session status='completed', Date between range, TeacherAttendance
+	// status='present'
+	@Query("SELECT s FROM Session s " + "JOIN s.teacherAttendances ta " + "WHERE s.subject.id = :subjectId "
+			+ "AND s.status = 'completed' " + "AND s.sessionDate BETWEEN :startDate AND :endDate "
+			+ "AND ta.teacher.id = :teacherId " + "AND ta.status = 'present'")
+	List<Session> findValidSessionsForSalary(@Param("teacherId") Long teacherId, @Param("subjectId") Long subjectId,
+			@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+
+	// lấy các Session của phòng trong khoảng ngày
+	@Query("SELECT new com.management.student_center.dto.RoomScheduleDTO(" + "r.id, r.name, r.seatCapacity, "
+			+ "ss.id, s.name, ss.dayOfWeek, ss.startTime, ss.endTime, "
+			+ "ses.id, ses.sessionDate, ses.startTime, ses.endTime, ses.status) " + "FROM Session ses "
+			+ "JOIN ses.room r " + "JOIN ses.schedule ss " + "JOIN ses.subject s " + "WHERE r.id = :roomId "
+			+ "AND ses.sessionDate BETWEEN :startDate AND :endDate " + "ORDER BY ses.sessionDate, ses.startTime")
+	List<RoomScheduleDTO> findRoomSchedule(@Param("roomId") Long roomId, @Param("startDate") LocalDate startDate,
+			@Param("endDate") LocalDate endDate);
+
+	@Query("""
+			    SELECT s FROM Session s
+			    WHERE s.subject.id IN (
+			        SELECT ts.subject.id FROM TeacherSubject ts
+			        WHERE ts.teacher.id = :teacherId
+			    )
+			    AND s.sessionDate BETWEEN :startDate AND :endDate
+			    ORDER BY s.sessionDate ASC, s.startTime ASC
+			""")
+	List<Session> findTeacherSessionsInRange(@Param("teacherId") Long teacherId,
+			@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+
+	// Lấy tất cả các môn học trong 1 ngày
+	@Query("""
+			    SELECT DISTINCT s
+			    FROM Session s
+			    JOIN FETCH s.subject sub
+			    LEFT JOIN FETCH sub.teacherSubjects ts
+			    LEFT JOIN FETCH ts.teacher t
+			    LEFT JOIN FETCH t.userInfo u
+			    LEFT JOIN FETCH s.room r
+			    WHERE s.sessionDate = :date
+
+			""")
+	List<Session> findSessionsByDate(@Param("date") LocalDate date);
+
+	// Lấy buổi học gần nhất so với thời điểm hiện t
+	@Query("""
+			    SELECT new com.management.student_center.dto.UpcomingSessionDTO(
+			        s.name,
+			        s.grade,
+			        u.fullName,
+			        se.sessionDate,
+			        se.startTime,
+			        se.endTime
+			    )
+			    FROM Session se
+			    JOIN se.subject s
+			    LEFT JOIN s.teacherSubjects ts
+			    LEFT JOIN ts.teacher t
+			    LEFT JOIN t.userInfo u
+			    WHERE
+			        (
+			            se.sessionDate > CURRENT_DATE
+			            OR (se.sessionDate = CURRENT_DATE AND se.startTime > CURRENT_TIME)
+			        )
+			        AND se.status = 'scheduled'
+			    ORDER BY se.sessionDate ASC, se.startTime ASC
+			""")
+	List<UpcomingSessionDTO> findUpcomingSessions(Pageable pageable);
+
+	// Đếm số lượng session đang hoạt động (chưa kết thúc)
+	@Query("SELECT COUNT(s) FROM Session s " + "WHERE s.room.id = :roomId " + "AND s.sessionDate = CURRENT_DATE "
+			+ "AND s.startTime <= CURRENT_TIME " + "AND s.endTime > CURRENT_TIME " + "AND s.status = 'scheduled'")
+	Long countActiveSessionsNow(@Param("roomId") Long roomId);
+
+	// Kiểm tra xem phòng có session trong tương lai không
+	@Query("SELECT COUNT(s) > 0 FROM Session s " + "WHERE s.room.id = :roomId " + "AND s.sessionDate >= CURRENT_DATE "
+			+ "AND s.status = 'scheduled'")
+	boolean hasFutureSessions(@Param("roomId") Long roomId);
+
+	@Query("""
+			    SELECT s FROM Session s
+			    WHERE s.room.id = :roomId
+			    AND s.sessionDate = CURRENT_DATE
+			    AND CURRENT_TIME BETWEEN s.startTime AND s.endTime
+			    AND s.status = 'scheduled'
+			""")
+	Session findActiveSessionByRoomId(@Param("roomId") Long roomId);
+
+	@Query("SELECT s FROM Session s WHERE s.subject.id IN :subjectIds AND s.sessionDate BETWEEN :startDate AND :endDate")
+	List<Session> findSessionsForLeave(@Param("subjectIds") List<Integer> subjectIds,
+			@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+
+	@Query("""
+			    SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END
+			    FROM Session s
+			    JOIN s.subject sub
+			    JOIN sub.teacherSubjects ts
+			    WHERE ts.teacher.id = :teacherId
+			    AND s.sessionDate = :date
+			    AND s.status = 'scheduled'
+			    AND (
+			        s.startTime < :endTime
+			        AND s.endTime > :startTime
+			    )
+			""")
+	boolean existsTeacherSessionOverlap(@Param("teacherId") Long teacherId, @Param("date") LocalDate date,
+			@Param("startTime") LocalTime startTime, @Param("endTime") LocalTime endTime);
+	List<Session> findBySubjectId(Long subjectId);
+	
+	 /**
+     * Lấy lịch dạy của giáo viên trong khoảng thời gian
+     * @param teacherId ID của giáo viên
+     * @param startDate Ngày bắt đầu
+     * @param endDate Ngày kết thúc
+     * @return Danh sách các buổi học
+     */
+    @Query("SELECT s FROM Session s WHERE s.subject IN " +
+           "(SELECT ts.subject FROM TeacherSubject ts WHERE ts.teacher.id = :teacherId) " +
+           "AND s.sessionDate BETWEEN :startDate AND :endDate")
+    List<Session> findTeacherSessionsInDateRange(@Param("teacherId") Long teacherId,
+                                                   @Param("startDate") LocalDate startDate,
+                                                   @Param("endDate") LocalDate endDate);
+
+ // Tìm sessions của subject trong khoảng thời gian
+    @Query("SELECT s FROM Session s WHERE s.subject.id = :subjectId AND s.sessionDate BETWEEN :startDate AND :endDate ORDER BY s.sessionDate ASC")
+    List<Session> findBySubjectIdAndSessionDateBetween(
+        @Param("subjectId") Long subjectId,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate
+    );
+    
+}
+package com.management.student_center.repository;
+
+import com.management.student_center.entity.SessionTeacher;
+import com.management.student_center.enums.AssignmentStatus;
+import com.management.student_center.enums.AssignmentType;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.time.LocalDate;
+import java.util.List;
+
+public interface SessionTeacherRepository extends JpaRepository<SessionTeacher, Long> {
+
+	List<SessionTeacher> findBySessionInfoId(Long sessionId);
+
+	@Query("""
+			    SELECT st
+			    FROM SessionTeacher st
+			    JOIN FETCH st.sessionInfo s
+			    JOIN FETCH st.teacherInfo t
+			    JOIN FETCH s.subject sub
+			    WHERE t.id = :teacherId
+			    AND s.sessionDate BETWEEN :startDate AND :endDate
+			    AND s.status = 'completed'
+			    AND st.assignmentStatus IN :statuses
+			    AND st.payrollLocked = false
+			    ORDER BY s.sessionDate ASC
+			""")
+	List<SessionTeacher> findPayrollSessions(@Param("teacherId") Long teacherId,
+			@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate,
+			@Param("statuses") List<AssignmentStatus> statuses);
+
+	@Query("""
+			    SELECT st
+			    FROM SessionTeacher st
+			    WHERE st.teacherInfo.id = :teacherId
+			    AND st.payrollLocked = true
+			""")
+	List<SessionTeacher> findLockedPayrollSessions(@Param("teacherId") Long teacherId);
+
+	boolean existsBySessionInfoId(Long sessionId);
+
+	boolean existsBySessionInfoIdAndTeacherInfoIdAndAssignmentType(Long sessionId, Long teacherId,
+			AssignmentType assignmentType);
+
+	@Query("""
+			    SELECT st
+			    FROM SessionTeacher st
+			    JOIN st.sessionInfo s
+			    WHERE st.teacherInfo.id = :teacherId
+			      AND s.subject.id = :subjectId
+			      AND st.payrollLocked = false
+			      AND st.assignmentType = 'MAIN'
+			""")
+	List<SessionTeacher> findByTeacherAndSubjectAndPayrollUnlocked(@Param("teacherId") Long teacherId,
+			@Param("subjectId") Long subjectId);
+
+	@Query("""
+			    SELECT st
+			    FROM SessionTeacher st
+			    JOIN st.sessionInfo s
+			    WHERE st.teacherInfo.id = :teacherId
+			      AND s.subject.id = :subjectId
+			      AND st.assignmentType = :assignmentType
+			      AND st.payrollLocked = false
+			      AND s.sessionDate >= :today
+			""")
+	List<SessionTeacher> findFutureSessionsForSalaryUpdate(@Param("teacherId") Long teacherId,
+			@Param("subjectId") Long subjectId, @Param("assignmentType") AssignmentType assignmentType,
+			@Param("today") LocalDate today);
+
+	@Query("""
+			select st
+			from SessionTeacher st
+			where st.teacherInfo.id = :teacherId
+			and st.assignmentType =
+			    com.management.student_center.enums.AssignmentType.MAIN
+			and st.sessionInfo.sessionDate
+			        between :startDate and :endDate
+			and st.assignmentStatus <>
+			    com.management.student_center.enums.AssignmentStatus.CANCELLED
+			and st.payrollLocked = false
+			""")
+	List<SessionTeacher> findTeacherSessions(Long teacherId, LocalDate startDate, LocalDate endDate);
+
+}package com.management.student_center.repository;
+
+import com.management.student_center.entity.StudentAssignment;
+import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.List;
+
+public interface StudentAssignmentRepository extends JpaRepository<StudentAssignment, Long> {
+    List<StudentAssignment> findByAssignmentId(Long assignmentId);
+}
+// 3. StudentCurriculumEvaluationRepository.java
+package com.management.student_center.repository;
+
+import com.management.student_center.entity.StudentCurriculumEvaluation;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import java.util.Optional;
+
+@Repository
+public interface StudentCurriculumEvaluationRepository extends JpaRepository<StudentCurriculumEvaluation, Long> {
+    Optional<StudentCurriculumEvaluation> findByStudentIdAndCurriculumId(Long studentId, Long curriculumId);
+}package com.management.student_center.repository;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import com.management.student_center.entity.StudentPaymentTransaction;
+
+@Repository
+public interface StudentPaymentTransactionRepository extends JpaRepository<StudentPaymentTransaction, Long> {
+
+	List<StudentPaymentTransaction> findByStudentTuitionId(Long tuitionId);
+
+	@Query("""
+			SELECT COALESCE(SUM(t.amount),0)
+			FROM StudentPaymentTransaction t
+			WHERE t.studentTuition.id = :tuitionId
+			""")
+	BigDecimal sumPaidAmount(@Param("tuitionId") Long tuitionId);
+
+	List<StudentPaymentTransaction> findByPaymentDateBetween(LocalDateTime from, LocalDateTime to);
+}package com.management.student_center.repository;
+
+import com.management.student_center.entity.Student;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+
+import java.util.Optional;
+
+public interface StudentRepository extends JpaRepository<Student, Long>, JpaSpecificationExecutor<Student> {
+	List<Student> findByGrade(String grade);
+
+	Optional<Student> findByUserInfoId(Long userId);
+
+	// Tổng số học sinh
+	long count();
+
+	// Đếm số học sinh được tạo trong khoảng thời gian
+	long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
+
+	// Lấy 5 học sinh mới nhất
+	List<Student> findTop5ByOrderByCreatedAtDesc();
+
+	@Query("SELECT DISTINCT s.schoolName FROM Student s WHERE s.schoolName IS NOT NULL AND s.schoolName != ''")
+	List<String> findDistinctSchoolNames();
+
+	@Query("""
+		    SELECT COUNT(s)
+		    FROM Student s
+		    WHERE s.userInfo.status = true
+		""")
+		long countActiveStudents();
+	
+	List<Student> findTop5ByUserInfo_StatusTrueOrderByCreatedAtDesc();
+	
+	@Query("""
+		    SELECT COUNT(s)
+		    FROM Student s
+		    WHERE s.userInfo.status = true
+		      AND s.createdAt BETWEEN :start AND :end
+		""")
+		long countActiveStudentsCreatedBetween(
+		        LocalDateTime start,
+		        LocalDateTime end
+		);
+}// 4. StudentSessionEvaluationRepository.java
+package com.management.student_center.repository;
+
+import com.management.student_center.entity.StudentSessionEvaluation;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface StudentSessionEvaluationRepository extends JpaRepository<StudentSessionEvaluation, Long> {
+   
+ // Tìm đánh giá theo studentId và sessionDetailId
+    Optional<StudentSessionEvaluation> findByStudentIdAndSessionDetailId(Long studentId, Long sessionDetailId);
+    
+    // Tìm tất cả đánh giá của student theo danh sách sessionDetailIds
+    @Query("SELECT e FROM StudentSessionEvaluation e WHERE e.studentId = :studentId AND e.sessionDetailId IN :sessionDetailIds")
+    List<StudentSessionEvaluation> findByStudentIdAndSessionDetailIds(
+        @Param("studentId") Long studentId, 
+        @Param("sessionDetailIds") List<Long> sessionDetailIds);
+    
+    // Tìm tất cả đánh giá của student theo curriculum
+    @Query("SELECT e FROM StudentSessionEvaluation e WHERE e.studentId = :studentId AND e.sessionDetailId IN " +
+           "(SELECT sd.id FROM SessionDetail sd WHERE sd.curriculum.id = :curriculumId)")
+    List<StudentSessionEvaluation> findByStudentIdAndCurriculumId(
+        @Param("studentId") Long studentId, 
+        @Param("curriculumId") Long curriculumId);
+    
+    List<StudentSessionEvaluation> findByStudentId(Long studentId);
+}package com.management.student_center.repository;
+
+import com.management.student_center.entity.*;
+import jakarta.persistence.criteria.*;
+import org.springframework.data.jpa.domain.Specification;
+
+public class StudentSpecification {
+
+	public static Specification<Student> hasRole(String roleId) {
+		return (root, query, cb) -> {
+			Join<Student, User> userJoin = root.join("userInfo");
+			return cb.equal(userJoin.get("roleId"), roleId);
+		};
+	}
+
+	public static Specification<Student> nameContains(String name) {
+		if (name == null || name.isEmpty())
+			return null;
+		return (root, query, cb) -> {
+			Join<Student, User> userJoin = root.join("userInfo");
+			return cb.like(cb.lower(userJoin.get("fullName")), "%" + name.toLowerCase() + "%");
+		};
+	}
+
+	public static Specification<Student> genderIs(Boolean gender) {
+		if (gender == null)
+			return null;
+		return (root, query, cb) -> {
+			Join<Student, User> userJoin = root.join("userInfo");
+			return cb.equal(userJoin.get("gender"), gender);
+		};
+	}
+
+	public static Specification<Student> gradeContains(String grade) {
+		if (grade == null || grade.isEmpty())
+			return null;
+		return (root, query, cb) -> cb.like(root.get("grade"), "%" + grade + "%");
+	}
+
+	public static Specification<Student> schoolNameContains(String schoolName) {
+		if (schoolName == null || schoolName.isEmpty())
+			return null;
+		return (root, query, cb) -> cb.like(cb.lower(root.get("schoolName")), "%" + schoolName.toLowerCase() + "%");
+	}
+
+	// 🔥 Lọc theo tên môn học (Join Student -> StudentSubject -> Subject)
+	public static Specification<Student> hasSubjectName(String subjectName) {
+		if (subjectName == null || subjectName.isEmpty())
+			return null;
+		return (root, query, cb) -> {
+			// Vì Student có List<StudentSubject> studentSubjects (kiểm tra lại tên trường
+			// trong Entity Student)
+			Join<Student, StudentSubject> ssJoin = root.join("studentSubjects");
+			Join<StudentSubject, Subject> subjectJoin = ssJoin.join("subject");
+			return cb.like(cb.lower(subjectJoin.get("name")), "%" + subjectName.toLowerCase() + "%");
+		};
+	}
+
+	public static Specification<Student> hasStatus(Boolean status) {
+		return (root, query, cb) -> {
+			if (status == null)
+				return null;
+			return cb.equal(root.get("userInfo").get("status"), status);
+		};
+	}
+}package com.management.student_center.repository;
+
+import com.management.student_center.entity.StudentSubject;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface StudentSubjectRepository extends JpaRepository<StudentSubject, Long> {
+
+	Long countBySubjectId(Long subjectId);
+
+	void deleteBySubjectId(Long subjectId);
+
+	List<StudentSubject> findBySubjectId(Long subjectId);
+
+	@Query("SELECT ss FROM StudentSubject ss WHERE ss.subject.id = :subjectId AND ss.deletedAt IS NULL")
+    List<StudentSubject> findActiveBySubjectId(@Param("subjectId") Long subjectId);
+
+	Optional<StudentSubject> findByStudentIdAndSubjectId(Long studentId, Long subjectId);
+	
+	List<StudentSubject> findBySubject_Id(Long subjectId);
+	
+	 @Query("SELECT ss FROM StudentSubject ss WHERE ss.student.id = :studentId AND ss.deletedAt IS NULL")
+	    List<StudentSubject> findActiveByStudentId(@Param("studentId") Long studentId);
+
+	void deleteByStudentId(Long studentId);
+
+	List<StudentSubject> findByStudentId(Long studentId);
+	
+	 // Lấy student subjects active tại 1 thời điểm (dùng để kiểm tra)
+    @Query("SELECT ss FROM StudentSubject ss WHERE ss.subject.id = :subjectId " +
+           "AND ss.enrollmentDate <= :date " +
+           "AND (ss.deletedAt IS NULL OR ss.deletedAt > :date)")
+    List<StudentSubject> findActiveStudentsBySubjectAndDate(
+        @Param("subjectId") Long subjectId, 
+        @Param("date") LocalDate date);
+    
+    // Optional: Lấy tất cả học sinh chưa bị xóa (không cần check thời gian)
+    List<StudentSubject> findBySubject_IdAndDeletedAtIsNull(Long subjectId);
+    
+    @Query("SELECT COUNT(ss) FROM StudentSubject ss WHERE ss.subject.id = :subjectId AND ss.deletedAt IS NULL")
+    long countActiveBySubjectId(@Param("subjectId") Long subjectId);
+    
+    @Query("""
+    		SELECT ss
+    		FROM StudentSubject ss
+    		WHERE ss.billingTypeSnapshot =
+    		com.management.student_center.enums.BillingType.PER_SUBJECT
+    		AND ss.deletedAt IS NULL
+    		""")
+    		List<StudentSubject> findAllPerSubjectEnrollments();
+}
+package com.management.student_center.repository;
+
+import com.management.student_center.entity.StudentTuitionDetail;
+
+import java.util.List;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface StudentTuitionDetailRepository extends JpaRepository<StudentTuitionDetail, Long> {
+
+	@Query("""
+			SELECT COUNT(std)
+			FROM StudentTuitionDetail std
+			JOIN std.studentTuition st
+			WHERE std.subject.id = :subjectId
+			AND st.status IN (
+			    com.management.student_center.enums.StudentTuitionStatus.WAITING_PAYMENT,
+			    com.management.student_center.enums.StudentTuitionStatus.PARTIAL_PAID,
+			    com.management.student_center.enums.StudentTuitionStatus.OVERDUE
+			)
+			""")
+	long countUnpaidBySubject(@Param("subjectId") Long subjectId);
+
+	@Query("""
+			    SELECT COUNT(std)
+			    FROM StudentTuitionDetail std
+			    JOIN std.studentTuition st
+			    WHERE std.subject.id = :subjectId
+			      AND st.student.id = :studentId
+			      AND st.status IN (
+			    com.management.student_center.enums.StudentTuitionStatus.WAITING_PAYMENT,
+			    com.management.student_center.enums.StudentTuitionStatus.PARTIAL_PAID,
+			    com.management.student_center.enums.StudentTuitionStatus.OVERDUE
+			)
+			""")
+	long countUnpaidByStudentAndSubject(@Param("studentId") Long studentId, @Param("subjectId") Long subjectId);
+
+	@Query("""
+		    SELECT COUNT(std)
+		    FROM StudentTuitionDetail std
+		    JOIN std.studentTuition st
+		    WHERE st.student.id = :studentId
+		    AND st.status IN (
+		        com.management.student_center.enums.StudentTuitionStatus.WAITING_PAYMENT,
+		        com.management.student_center.enums.StudentTuitionStatus.PARTIAL_PAID,
+		        com.management.student_center.enums.StudentTuitionStatus.OVERDUE
+		    )
+		""")
+		long countUnpaidByStudent(
+		        @Param("studentId") Long studentId
+		);
+	
+	
+	List<StudentTuitionDetail> findBySubjectId(Long subjectId);
+
+	@Query("""
+			SELECT d
+			FROM StudentTuitionDetail d
+			JOIN d.studentTuition st
+			WHERE st.student.id = :studentId
+			AND d.subject.id = :subjectId
+			""")
+	List<StudentTuitionDetail> findByStudentAndSubject(@Param("studentId") Long studentId,
+			@Param("subjectId") Long subjectId);
+
+	@Query("""
+		    SELECT COUNT(d)
+		    FROM StudentTuitionDetail d
+		    JOIN d.studentTuition st
+		    WHERE st.student.id = :studentId
+		    AND d.subject.id = :subjectId
+		    AND d.paymentPlanType =
+		        com.management.student_center.enums.PaymentPlanType.INSTALLMENT
+		""")
+		long countGeneratedInstallments(
+		        @Param("studentId") Long studentId,
+		        @Param("subjectId") Long subjectId
+		);
+
+	@Query("""
+		    SELECT MAX(d.installmentNo)
+		    FROM StudentTuitionDetail d
+		    JOIN d.studentTuition st
+		    WHERE st.student.id = :studentId
+		    AND d.subject.id = :subjectId
+AND d.paymentPlanType =
+		        com.management.student_center.enums.PaymentPlanType.INSTALLMENT
+		""")
+		Integer findLatestInstallment(
+		        @Param("studentId") Long studentId,
+		        @Param("subjectId") Long subjectId
+		);
+	
+	@Query("""
+		    SELECT COUNT(d)
+		    FROM StudentTuitionDetail d
+		    JOIN d.studentTuition st
+		    WHERE st.student.id = :studentId
+		    AND d.subject.id = :subjectId
+		    AND d.paymentPlanType =
+		        com.management.student_center.enums.PaymentPlanType.ONE_TIME
+		""")
+		long countOneTimeInvoices(
+		        @Param("studentId") Long studentId,
+		        @Param("subjectId") Long subjectId
+		);
+}
+package com.management.student_center.repository;
+
+import com.management.student_center.entity.StudentTuition;
+import com.management.student_center.enums.StudentTuitionStatus;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface StudentTuitionRepository extends JpaRepository<StudentTuition, Long> {
+
+
+	// Tìm hóa đơn của 1 học sinh theo tháng năm (để tránh tạo trùng)
+	boolean existsByStudentIdAndMonthAndYear(Long studentId, int month, int year);
+
+	List<StudentTuition> findByMonthAndYear(int month, int year);
+
+	Optional<StudentTuition> findByStudentIdAndMonthAndYear(Long studentId, int month, int year);
+
+	@Query("""
+			SELECT t
+			FROM StudentTuition t
+			JOIN t.student s
+			LEFT JOIN s.userInfo u
+			WHERE t.month = :month
+			AND t.year = :year
+			AND (:name IS NULL OR :name = '' OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :name, '%')))
+			AND (:grade IS NULL OR :grade = '' OR s.grade = :grade)
+			AND (:status IS NULL OR t.status = :status)
+			""")
+			List<StudentTuition> searchTuitions(
+			        @Param("month") int month,
+			        @Param("year") int year,
+			        @Param("name") String name,
+			        @Param("grade") String grade,
+			        @Param("status") StudentTuitionStatus status
+			);
+
+	@Query("SELECT t.month, SUM(t.paidAmount) " + "FROM StudentTuition t "
+			+ "WHERE t.year = :year AND t.paidAmount IS NOT NULL " + "GROUP BY t.month")
+	List<Object[]> sumTotalRevenueByYear(@Param("year") int year);
+
+	@Query("SELECT s.name, SUM(d.totalMoney) " + "FROM StudentTuitionDetail d " + "JOIN d.studentTuition t "
+			+ "JOIN d.subject s " + // Join với bảng môn học để lấy tên
+			"WHERE t.year = :year " + "GROUP BY s.name")
+	List<Object[]> sumRevenueBySubject(@Param("year") int year);
+
+	
+	
+	
+	
+	Optional<StudentTuition> findByInvoiceCode(String invoiceCode);
+
+	List<StudentTuition> findByStatusIn(List<StudentTuitionStatus> statuses);
+
+	@Query("""
+			SELECT COUNT(st)
+			FROM StudentTuition st
+			JOIN st.details d
+			WHERE st.student.id = :studentId
+			AND d.subject.id = :subjectId
+			AND st.month = :month
+			AND st.year = :year
+			""")
+	long countSubjectInvoices(Long studentId, Long subjectId, int month, int year);
+	
+	
+}package com.management.student_center.repository;
+
+import com.management.student_center.entity.Subject;
+import com.management.student_center.enums.BillingType;
+import com.management.student_center.enums.PaymentPlanType;
+
+import org.springframework.data.repository.query.Param;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+
+public interface SubjectRepository extends JpaRepository<Subject, Long> {
+	Optional<Subject> findById(Long id);
+
+	Page<Subject> findByStatus(String status, Pageable pageable);
+
+	List<Subject> findByStatus(String status);
+
+	long countByStatus(String status);
+
+	@Query("SELECT COUNT(ss) FROM StudentSubject ss WHERE ss.subject.id = :subjectId AND ss.deletedAt IS NULL")
+	long countCurrentStudents(@Param("subjectId") Long subjectId);
+
+	// Lấy môn học theo teacher
+	@Query("SELECT s FROM Subject s JOIN s.teacherSubjects ts WHERE ts.teacher.userInfo.id = :userId")
+	Page<Subject> findByUserId(@Param("userId") Long userId, Pageable pageable);
+
+	@Query("SELECT s FROM Subject s JOIN s.teacherSubjects ts WHERE ts.teacher.userInfo.id = :userId AND s.status = :status")
+	Page<Subject> findByUserIdAndStatus(@Param("userId") Long userId, @Param("status") String status,
+			Pageable pageable);
+
+	long count();
+
+	long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
+
+	// Đếm số lớp học theo cấp học
+	@Query("""
+			    SELECT
+			        CASE
+			            WHEN CAST(s.grade AS int) BETWEEN 1 AND 5 THEN 'Cấp 1 (Tiểu học)'
+			            WHEN CAST(s.grade AS int) BETWEEN 6 AND 9 THEN 'Cấp 2 (THCS)'
+			            WHEN CAST(s.grade AS int) BETWEEN 10 AND 12 THEN 'Cấp 3 (THPT)'
+			        END,
+			        COUNT(s)
+			    FROM Subject s
+			    GROUP BY
+			        CASE
+			            WHEN CAST(s.grade AS int) BETWEEN 1 AND 5 THEN 'Cấp 1 (Tiểu học)'
+			            WHEN CAST(s.grade AS int) BETWEEN 6 AND 9 THEN 'Cấp 2 (THCS)'
+			            WHEN CAST(s.grade AS int) BETWEEN 10 AND 12 THEN 'Cấp 3 (THPT)'
+			        END
+			""")
+	List<Object[]> countSubjectsByLevel();
+
+	
+	List<Subject>
+	findByBillingType(BillingType billingType);
+	
+	List<Subject>
+	findByPaymentPlanType(
+	    PaymentPlanType paymentPlanType
+	);
+}
+package com.management.student_center.repository;
+
+import com.management.student_center.entity.SubjectSchedule;
+import com.management.student_center.entity.Room;
+import com.management.student_center.entity.Subject;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+public interface SubjectScheduleRepository extends JpaRepository<SubjectSchedule, Long> {
+
+    // Kiểm tra trùng giờ cùng phòng
+    @Query("SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END " +
+           "FROM SubjectSchedule s " +
+           "WHERE s.room = :room " +
+           "AND s.dayOfWeek = :dayOfWeek " +
+           "AND ((s.startTime < :endTime AND s.endTime > :startTime))")
+    boolean existsByRoomAndDayOfWeekAndTimeOverlap(
+            @Param("room") Room room,
+            @Param("dayOfWeek") Integer dayOfWeek,
+            @Param("startTime") java.time.LocalTime startTime,
+            @Param("endTime") java.time.LocalTime endTime
+    );
+
+    // Kiểm tra trùng giờ cùng lớp
+    @Query("SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END " +
+           "FROM SubjectSchedule s " +
+           "WHERE s.subject = :subject " +
+           "AND s.dayOfWeek = :dayOfWeek " +
+           "AND ((s.startTime < :endTime AND s.endTime > :startTime))")
+    boolean existsBySubjectAndDayOfWeekAndTimeOverlap(
+            @Param("subject") Subject subject,
+            @Param("dayOfWeek") Integer dayOfWeek,
+            @Param("startTime") java.time.LocalTime startTime,
+            @Param("endTime") java.time.LocalTime endTime
+    );
+}
+package com.management.student_center.repository;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.management.student_center.entity.SubjectType;
+
+public interface SubjectTypeRepository extends JpaRepository<SubjectType, Long> {
+}package com.management.student_center.repository;
+
+import com.management.student_center.entity.Session;
+import com.management.student_center.entity.Teacher;
+import com.management.student_center.entity.TeacherAttendance;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+import java.util.Optional;
+
+public interface TeacherAttendanceRepository extends JpaRepository<TeacherAttendance, Long> {
+
+    Optional<TeacherAttendance> findBySessionAndTeacher(Session session, Teacher teacher);
+
+    List<TeacherAttendance> findAllByTeacherAndSessionIn(Teacher teacher, List<Session> sessions);
+}
+package com.management.student_center.repository;
+
+import com.management.student_center.entity.TeacherLeave;
+import com.management.student_center.entity.TeacherLeave.LeaveStatus;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.List;
+
+@Repository
+public interface TeacherLeaveRepository
+		extends JpaRepository<TeacherLeave, Long>, JpaSpecificationExecutor<TeacherLeave> {
+
+	// ================= LIST =================
+
+	Page<TeacherLeave> findByTeacherId(Long teacherId, Pageable pageable);
+
+	Page<TeacherLeave> findByStatus(LeaveStatus status, Pageable pageable);
+
+	Page<TeacherLeave> findByTeacherIdAndStatus(Long teacherId, LeaveStatus status, Pageable pageable);
+
+	// ================= COUNT =================
+
+	long countByStatus(LeaveStatus status);
+
+	// ================= CHECK OVERLAP =================
+
+	/**
+	 * Check nghỉ trùng ngày + giờ
+	 */
+	@Query("""
+			    SELECT COUNT(l)
+			    FROM TeacherLeave l
+			    WHERE l.teacher.id = :teacherId
+			    AND l.status IN (
+			        com.management.student_center.entity.TeacherLeave$LeaveStatus.PENDING,
+			        com.management.student_center.entity.TeacherLeave$LeaveStatus.APPROVED
+			    )
+			    AND l.startDate <= :endDate
+			    AND l.endDate >= :startDate
+
+			    AND (
+			        (
+			            l.startTime IS NULL
+			            OR l.endTime IS NULL
+			        )
+			        OR
+			        (
+			            :startTime < l.endTime
+			            AND :endTime > l.startTime
+			        )
+			    )
+			""")
+	int countOverlappingLeave(@Param("teacherId") Long teacherId, @Param("startDate") LocalDate startDate,
+			@Param("endDate") LocalDate endDate, @Param("startTime") LocalTime startTime,
+			@Param("endTime") LocalTime endTime);
+
+	@Query("""
+			    SELECT CASE WHEN COUNT(tl) > 0 THEN true ELSE false END
+			    FROM TeacherLeave tl
+			    WHERE tl.teacher.id = :teacherId
+			    AND tl.status IN ('PENDING', 'APPROVED')
+			    AND :date BETWEEN tl.startDate AND tl.endDate
+			    AND (
+			        tl.startTime IS NULL
+			        OR tl.endTime IS NULL
+			        OR (
+			            tl.startTime < :endTime
+			            AND tl.endTime > :startTime
+			        )
+			    )
+			""")
+	boolean existsTeacherLeaveOverlap(@Param("teacherId") Long teacherId, @Param("date") LocalDate date,
+			@Param("startTime") LocalTime startTime, @Param("endTime") LocalTime endTime);
+
+	@Query("""
+			    SELECT tl FROM TeacherLeave tl
+			    WHERE tl.teacher.id = :teacherId
+			    AND :date BETWEEN tl.startDate AND tl.endDate
+			""")
+	List<TeacherLeave> findByTeacherIdAndDate(@Param("teacherId") Long teacherId, @Param("date") LocalDate date);
+
+	@Query("""
+			    SELECT tl
+			    FROM TeacherLeave tl
+			    WHERE tl.status = 'APPROVED'
+			    AND tl.startDate <= :weekEnd
+			    AND tl.endDate >= :weekStart
+			""")
+	List<TeacherLeave> findApprovedLeavesInWeek(LocalDate weekStart, LocalDate weekEnd);
+
+	// ✅ Method 1: Filter cho ADMIN
+	@Query("SELECT DISTINCT tl FROM TeacherLeave tl " + "LEFT JOIN FETCH tl.teacher t " + "LEFT JOIN FETCH t.userInfo "
+			+ "WHERE " + "(:status IS NULL OR tl.status = :status) "
+			+ "AND (:startDate IS NULL OR tl.endDate >= :startDate) " + // Đơn kết thúc SAU ngày bắt đầu
+			"AND (:endDate IS NULL OR tl.startDate <= :endDate)") // Đơn bắt đầu TRƯỚC ngày kết thúc
+	Page<TeacherLeave> findByFilters(@Param("status") TeacherLeave.LeaveStatus status,
+			@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate, Pageable pageable);
+
+	// ✅ Method 2: Filter cho TEACHER (có teacherId)
+	@Query("SELECT DISTINCT tl FROM TeacherLeave tl " + "LEFT JOIN FETCH tl.teacher t " + "LEFT JOIN FETCH t.userInfo "
+			+ "WHERE " + "tl.teacher.id = :teacherId " + "AND (:status IS NULL OR tl.status = :status) "
+			+ "AND (:startDate IS NULL OR tl.endDate >= :startDate) "
+			+ "AND (:endDate IS NULL OR tl.startDate <= :endDate)")
+	Page<TeacherLeave> findByTeacherIdAndFilters(@Param("teacherId") Long teacherId,
+			@Param("status") TeacherLeave.LeaveStatus status, @Param("startDate") LocalDate startDate,
+			@Param("endDate") LocalDate endDate, Pageable pageable);
+
+	// ✅ Method 3: Count query cho pagination (nếu cần performance)
+	@Query("SELECT COUNT(tl) FROM TeacherLeave tl WHERE " + "(:status IS NULL OR tl.status = :status) "
+			+ "AND (:startDate IS NULL OR tl.endDate >= :startDate) "
+			+ "AND (:endDate IS NULL OR tl.startDate <= :endDate)")
+	long countByFilters(@Param("status") TeacherLeave.LeaveStatus status, @Param("startDate") LocalDate startDate,
+			@Param("endDate") LocalDate endDate);
+
+}
+package com.management.student_center.repository;
+
+import com.management.student_center.entity.TeacherPaymentDetail;
+
+import jakarta.transaction.Transactional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface TeacherPaymentDetailRepository extends JpaRepository<TeacherPaymentDetail, Long> {
+
+	List<TeacherPaymentDetail> findByPaymentInfoId(Integer paymentId);
+
+	boolean existsBySessionTeacherInfoId(Long sessionTeacherId);
+
+	@Modifying
+	@Transactional
+	long deleteBySessionTeacherInfoId(Long sessionTeacherId);
+
+
+	@Modifying
+	@Transactional
+	@Query("DELETE FROM TeacherPaymentDetail d WHERE d.paymentInfo.id = :paymentId")
+	void deleteByPaymentInfoId(@Param("paymentId") Integer paymentId);
+
+}package com.management.student_center.repository;
+
+import java.util.List;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import com.management.student_center.entity.TeacherPaymentHistory;
+
+@Repository
+public interface TeacherPaymentHistoryRepository
+        extends JpaRepository<TeacherPaymentHistory, Integer> {
+
+    List<TeacherPaymentHistory>
+    findByPaymentInfoIdOrderByCreatedAtAsc(Integer paymentId);
+
+}package com.management.student_center.repository;
+
+import com.management.student_center.entity.TeacherPayment;
+import com.management.student_center.enums.TeacherPaymentStatus;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.List;
+import java.util.Optional;
+
+public interface TeacherPaymentRepository extends JpaRepository<TeacherPayment, Integer> {
+
+	Optional<TeacherPayment> findByTeacherInfoIdAndMonthAndYear(Long teacherId, Integer month, Integer year);
+
+	List<TeacherPayment> findByMonthAndYear(Integer month, Integer year);
+
+	List<TeacherPayment> findByStatus(TeacherPaymentStatus status);
+
+	List<TeacherPayment> findAllByOrderByCreatedAtDesc();
+
+	List<TeacherPayment> findByTeacherInfoIdOrderByYearDescMonthDesc(Integer teacherId);
+
+	@Query("SELECT p FROM TeacherPayment p " + "JOIN FETCH p.teacherInfo t " + // p.teacherInfo (tên field trong Entity)
+			"JOIN FETCH t.userInfo " + // t.userInfo (field trong Teacher entity)
+			"WHERE p.id = :paymentId")
+	Optional<TeacherPayment> findByIdWithTeacher(@Param("paymentId") Integer paymentId);
+}
+package com.management.student_center.repository;
+
+import com.management.student_center.entity.Teacher;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface TeacherRepository extends JpaRepository<Teacher, Long>, JpaSpecificationExecutor<Teacher> {
+
+	Optional<Teacher> findByUserInfoId(Long userId);
+
+	List<Teacher> findAllByTeacherSubjects_Subject_Id(Long subjectId);
+
+	long count();
+
+	long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
+
+	@Query("""
+			    SELECT COUNT(t)
+			    FROM Teacher t
+			    WHERE t.userInfo.status = true
+			""")
+	long countActiveTeachers();
+
+	@Query("""
+			    SELECT COUNT(t)
+			    FROM Teacher t
+			    WHERE t.userInfo.status = true
+			      AND t.createdAt BETWEEN :start AND :end
+			""")
+	long countActiveTeachersCreatedBetween(LocalDateTime start, LocalDateTime end);
+
+	// ===== Latest =====
+
+	List<Teacher> findTop5ByUserInfo_StatusTrueOrderByCreatedAtDesc();
+}package com.management.student_center.repository;
+
+import com.management.student_center.entity.Teacher;
+import com.management.student_center.entity.User;
+import jakarta.persistence.criteria.*;
+import org.springframework.data.jpa.domain.Specification;
+
+public class TeacherSpecification {
+
+	public static Specification<Teacher> hasRole(String roleId) {
+		return (root, query, cb) -> {
+			Join<Teacher, User> userJoin = root.join("userInfo");
+			return cb.equal(userJoin.get("roleId"), roleId);
+		};
+	}
+
+	public static Specification<Teacher> nameContains(String name) {
+		if (name == null || name.isEmpty())
+			return null;
+		return (root, query, cb) -> {
+			Join<Teacher, User> userJoin = root.join("userInfo");
+			return cb.like(cb.lower(userJoin.get("fullName")), "%" + name.toLowerCase() + "%");
+		};
+	}
+
+	public static Specification<Teacher> genderIs(Boolean gender) {
+		if (gender == null)
+			return null;
+		return (root, query, cb) -> {
+			Join<Teacher, User> userJoin = root.join("userInfo");
+			return cb.equal(userJoin.get("gender"), gender);
+		};
+	}
+
+	public static Specification<Teacher> specialtyContains(String specialty) {
+		if (specialty == null || specialty.isEmpty())
+			return null;
+		return (root, query, cb) -> {
+			return cb.like(cb.lower(root.get("specialty")), "%" + specialty.toLowerCase() + "%");
+		};
+	}
+
+	public static Specification<Teacher> hasStatus(Boolean status) {
+		return (root, query, cb) -> {
+			if (status == null)
+				return cb.conjunction();
+			Join<Teacher, User> userJoin = root.join("userInfo");
+			return cb.equal(userJoin.get("status"), status);
+		};
+	}
+}package com.management.student_center.repository;
+
+import com.management.student_center.entity.TeacherSubject;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface TeacherSubjectRepository extends JpaRepository<TeacherSubject, Long> {
+
+	// Tìm TeacherSubject theo subjectId
+	Optional<TeacherSubject> findBySubjectId(Long subjectId);
+
+	// Xoá TeacherSubject theo subjectId
+	void deleteBySubjectId(Long subjectId);
+
+	// Tìm theo cặp teacherId và subjectId để check trùng
+	Optional<TeacherSubject> findByTeacherIdAndSubjectId(Long teacherId, Long subjectId);
+
+	// Kiểm tra tồn tại
+	boolean existsByTeacherIdAndSubjectId(Long teacherId, Long subjectId);
+
+	@Query("SELECT ts FROM TeacherSubject ts " + "WHERE (:grade IS NULL OR ts.subject.grade = :grade) "
+			+ "AND (:teacherName IS NULL OR LOWER(ts.teacher.userInfo.fullName) LIKE LOWER(CONCAT('%', :teacherName, '%'))) "
+			+ "AND (:subjectName IS NULL OR LOWER(ts.subject.name) LIKE LOWER(CONCAT('%', :subjectName, '%')))")
+	List<TeacherSubject> findByCriteria(@Param("grade") Integer grade, @Param("teacherName") String teacherName,
+			@Param("subjectName") String subjectName);
+
+	List<TeacherSubject> findByTeacherId(Long teacherId);
+
+	List<TeacherSubject> findAllBySubjectId(Long subjectId);
+
+	
+}package com.management.student_center.repository;
+
+import com.management.student_center.entity.User;
+import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.Optional;
+
+public interface UserRepository extends JpaRepository<User, Long> {
+    Optional<User> findByEmail(String email);
+    
+    boolean existsByEmail(String email);
+}
+

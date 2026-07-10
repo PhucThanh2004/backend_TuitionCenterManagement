@@ -1,0 +1,4109 @@
+package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+@Entity
+@Table(name = "academic_levels")
+public class AcademicLevel {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true)
+    private String name; // Tiểu học, THCS, THPT
+
+    @Column(name = "order_index")
+    private Integer orderIndex;
+
+    @OneToMany(mappedBy = "academicLevel")
+    @JsonIgnore
+    private List<SubjectType> subjectTypes;
+
+    // ===== Getter & Setter =====
+    public Long getId() { return id; }
+
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+
+    public Integer getOrderIndex() { return orderIndex; }
+    public void setOrderIndex(Integer orderIndex) { this.orderIndex = orderIndex; }
+
+    public List<SubjectType> getSubjectTypes() { return subjectTypes; }
+    public void setSubjectTypes(List<SubjectType> subjectTypes) { this.subjectTypes = subjectTypes; }
+}package com.management.student_center.entity;
+
+import java.time.LocalDateTime;
+
+import org.hibernate.annotations.CreationTimestamp;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "activity_log")
+public class ActivityLog {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    // Người thực hiện hành động
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
+    // Loại thao tác: create, update, delete, approve...
+    @Column(name = "action_type", nullable = false, length = 50)
+    private String actionType;
+
+    // Loại đối tượng bị tác động: student, teacher, announcement, schedule, course...
+    @Column(name = "target_type", nullable = false, length = 50)
+    private String targetType;
+
+    // ID của đối tượng trong bảng gốc
+    @Column(name = "target_id", nullable = false)
+    private Long targetId;
+
+    // Chuỗi tóm tắt hành động, dùng hiển thị feed nhanh
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
+
+    // Thông tin bổ sung, có thể là JSON dạng String
+    @Column(name = "meta", columnDefinition = "TEXT")
+    private String meta;
+
+    // Thời điểm hành động xảy ra
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    // Đánh dấu đã đọc hay chưa
+    @Column(name = "is_read", nullable = false)
+    private Boolean isRead = false;
+
+    // Constructor mặc định
+    public ActivityLog() {}
+
+    // Constructor đầy đủ
+    public ActivityLog(User user, String actionType, String targetType, Long targetId, String description, String meta) {
+        this.user = user;
+        this.actionType = actionType;
+        this.targetType = targetType;
+        this.targetId = targetId;
+        this.description = description;
+        this.meta = meta;
+        this.isRead = false; // Mặc định chưa đọc
+    }
+
+    // Getter và Setter
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+    public String getActionType() {
+        return actionType;
+    }
+
+    public void setActionType(String actionType) {
+        this.actionType = actionType;
+    }
+
+    public String getTargetType() {
+        return targetType;
+    }
+
+    public void setTargetType(String targetType) {
+        this.targetType = targetType;
+    }
+
+    public Long getTargetId() {
+        return targetId;
+    }
+
+    public void setTargetId(Long targetId) {
+        this.targetId = targetId;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getMeta() {
+        return meta;
+    }
+
+    public void setMeta(String meta) {
+        this.meta = meta;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public Boolean getIsRead() {
+        return isRead;
+    }
+
+    public void setIsRead(Boolean isRead) {
+        this.isRead = isRead;
+    }
+}package com.management.student_center.entity;
+
+import com.fasterxml.jackson.annotation.JsonIgnore; // <--- NHỚ IMPORT CÁI NÀY
+import jakarta.persistence.*;
+import java.util.List;
+
+@Entity
+@Table(name = "addresses")
+public class Address {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String details;
+
+    private String ward;
+
+    private String province;
+
+    // Quan hệ với Teacher
+    @OneToMany(mappedBy = "addressInfo")
+    @JsonIgnore // <--- THÊM DÒNG NÀY: Ngắt vòng lặp Teacher -> Address -> Teacher...
+    private List<Teacher> teachers;
+
+    // Quan hệ với Student
+    @OneToMany(mappedBy = "addressInfo")
+    @JsonIgnore // <--- THÊM DÒNG NÀY LUÔN: Để tránh lỗi tương tự với học sinh
+    private List<Student> students;
+
+    // Constructor mặc định
+    public Address() {}
+
+    // Getter & Setter
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public String getDetails() { return details; }
+    public void setDetails(String details) { this.details = details; }
+
+    public String getWard() { return ward; }
+    public void setWard(String ward) { this.ward = ward; }
+
+    public String getProvince() { return province; }
+    public void setProvince(String province) { this.province = province; }
+
+    public List<Teacher> getTeachers() { return teachers; }
+    public void setTeachers(List<Teacher> teachers) { this.teachers = teachers; }
+
+    public List<Student> getStudents() { return students; }
+    public void setStudents(List<Student> students) { this.students = students; }
+}package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+import java.time.LocalDateTime;
+
+import java.util.List;
+
+@Entity
+@Table(name = "announcements")
+public class Announcement {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+
+	@ManyToOne
+	@JoinColumn(name = "adminId", referencedColumnName = "id", foreignKey = @ForeignKey(name = "fk_announcement_admin"))
+	private User admin;
+
+	@Column(nullable = false, length = 255)
+	private String title;
+
+	@Column(columnDefinition = "TEXT")
+	private String content;
+
+	private String imageURL;
+
+	@Column(nullable = false)
+	private String status = "active";
+	
+	@Column(nullable = false)
+	private Boolean pinned = false;
+
+	private LocalDateTime createdAt;
+
+	private LocalDateTime updatedAt;
+	
+	 @Transient // Không lưu xuống DB, tính toán dynamic
+	    private Long likeCount;
+	    
+	    @Transient
+	    private Long viewCount;
+	    
+	    @Transient
+	    private Boolean likedByCurrentUser;
+	    
+	    // Getters and Setters
+	    public Long getLikeCount() { return likeCount; }
+	    public void setLikeCount(Long likeCount) { this.likeCount = likeCount; }
+	    
+	    public Long getViewCount() { return viewCount; }
+	    public void setViewCount(Long viewCount) { this.viewCount = viewCount; }
+	    
+	    public Boolean getLikedByCurrentUser() { return likedByCurrentUser; }
+	    public void setLikedByCurrentUser(Boolean likedByCurrentUser) { this.likedByCurrentUser = likedByCurrentUser; }
+
+	@JdbcTypeCode(SqlTypes.JSON)
+	@Column(columnDefinition = "JSON")
+	private List<String> attachments;
+
+	@PrePersist
+	public void onCreate() {
+		this.createdAt = LocalDateTime.now();
+		this.updatedAt = LocalDateTime.now();
+	}
+
+	@PreUpdate
+	public void onUpdate() {
+		this.updatedAt = LocalDateTime.now();
+	}
+
+	public Announcement() {
+	}
+
+	// Getter / Setter
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public User getAdmin() {
+		return admin;
+	}
+
+	public void setAdmin(User admin) {
+		this.admin = admin;
+	}
+
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(String title) {
+		this.title = title;
+	}
+
+	public String getContent() {
+		return content;
+	}
+
+	public void setContent(String content) {
+		this.content = content;
+	}
+
+	public String getImageURL() {
+		return imageURL;
+	}
+
+	public void setImageURL(String imageURL) {
+		this.imageURL = imageURL;
+	}
+
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+	
+	public Boolean getPinned() {
+	    return pinned;
+	}
+
+	public void setPinned(Boolean pinned) {
+	    this.pinned = pinned;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public List<String> getAttachments() {
+		return attachments;
+	}
+
+	public void setAttachments(List<String> attachments) {
+		this.attachments = attachments;
+	}
+}
+package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "announcement_likes", uniqueConstraints = {
+    @UniqueConstraint(columnNames = {"announcement_id", "user_id"})
+})
+public class AnnouncementLike {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @ManyToOne
+    @JoinColumn(name = "announcement_id", nullable = false,
+                foreignKey = @ForeignKey(name = "fk_like_announcement"))
+    private Announcement announcement;
+    
+    @ManyToOne
+    @JoinColumn(name = "user_id", nullable = false,
+                foreignKey = @ForeignKey(name = "fk_like_user"))
+    private User user;
+    
+    @Column(nullable = false)
+    private LocalDateTime likedAt;
+    
+    @PrePersist
+    protected void onCreate() {
+        likedAt = LocalDateTime.now();
+    }
+    
+    // Constructors
+    public AnnouncementLike() {}
+    
+    public AnnouncementLike(Announcement announcement, User user) {
+        this.announcement = announcement;
+        this.user = user;
+    }
+    
+    // Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    
+    public Announcement getAnnouncement() { return announcement; }
+    public void setAnnouncement(Announcement announcement) { this.announcement = announcement; }
+    
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
+    
+    public LocalDateTime getLikedAt() { return likedAt; }
+    public void setLikedAt(LocalDateTime likedAt) { this.likedAt = likedAt; }
+}package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "announcement_views")
+public class AnnouncementView {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @ManyToOne
+    @JoinColumn(name = "announcement_id", nullable = false,
+                foreignKey = @ForeignKey(name = "fk_view_announcement"))
+    private Announcement announcement;
+    
+    @ManyToOne
+    @JoinColumn(name = "user_id", foreignKey = @ForeignKey(name = "fk_view_user"))
+    private User user; // có thể null nếu người dùng chưa đăng nhập
+    
+    @Column(nullable = false)
+    private String ipAddress;
+    
+    @Column(nullable = false)
+    private LocalDateTime viewedAt;
+    
+    @Column(length = 50)
+    private String userAgent;
+    
+    @PrePersist
+    protected void onCreate() {
+        viewedAt = LocalDateTime.now();
+    }
+    
+    // Constructors
+    public AnnouncementView() {}
+    
+    public AnnouncementView(Announcement announcement, User user, String ipAddress, String userAgent) {
+        this.announcement = announcement;
+        this.user = user;
+        this.ipAddress = ipAddress;
+        this.userAgent = userAgent;
+    }
+    
+    // Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    
+    public Announcement getAnnouncement() { return announcement; }
+    public void setAnnouncement(Announcement announcement) { this.announcement = announcement; }
+    
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
+    
+    public String getIpAddress() { return ipAddress; }
+    public void setIpAddress(String ipAddress) { this.ipAddress = ipAddress; }
+    
+    public LocalDateTime getViewedAt() { return viewedAt; }
+    public void setViewedAt(LocalDateTime viewedAt) { this.viewedAt = viewedAt; }
+    
+    public String getUserAgent() { return userAgent; }
+    public void setUserAgent(String userAgent) { this.userAgent = userAgent; }
+}package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import org.hibernate.annotations.CreationTimestamp;
+
+@Entity
+@Table(name = "assignments")
+public class Assignment {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+
+	private String title;
+
+	@Column(columnDefinition = "TEXT")
+	private String description;
+
+	private LocalDateTime dueDate;
+
+	@CreationTimestamp
+	private LocalDateTime createdAt;
+
+	private String file;
+
+	// Quan hệ với Session
+	@ManyToOne
+	@JoinColumn(name = "sessionId", nullable = false)
+	private Session session;
+
+	// Quan hệ với StudentAssignment
+	@OneToMany(mappedBy = "assignment")
+	private List<StudentAssignment> studentAssignments;
+
+	public Assignment() {
+	}
+
+	// Getter & Setter
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(String title) {
+		this.title = title;
+	}
+
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
+	public LocalDateTime getDueDate() {
+		return dueDate;
+	}
+
+	public void setDueDate(LocalDateTime dueDate) {
+		this.dueDate = dueDate;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public String getFile() {
+		return file;
+	}
+
+	public void setFile(String file) {
+		this.file = file;
+	}
+
+	public Session getSession() {
+		return session;
+	}
+
+	public void setSession(Session session) {
+		this.session = session;
+	}
+
+	public List<StudentAssignment> getStudentAssignments() {
+		return studentAssignments;
+	}
+
+	public void setStudentAssignments(List<StudentAssignment> studentAssignments) {
+		this.studentAssignments = studentAssignments;
+	}
+}
+package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "attendance_students")
+public class AttendanceStudent {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String status; // present | absent | late
+
+    @Column(columnDefinition = "TEXT")
+    private String note;
+
+    // Quan hệ với Session
+    @ManyToOne
+    @JoinColumn(name = "sessionId", nullable = false)
+    private Session session;
+
+    // Quan hệ với Student
+    @ManyToOne
+    @JoinColumn(name = "studentId", nullable = false)
+    private Student student;
+
+    public AttendanceStudent() {}
+
+    // Getter & Setter
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
+    public String getNote() { return note; }
+    public void setNote(String note) { this.note = note; }
+
+    public Session getSession() { return session; }
+    public void setSession(Session session) { this.session = session; }
+
+    public Student getStudent() { return student; }
+    public void setStudent(Student student) { this.student = student; }
+}
+package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "curriculums")
+public class Curriculum {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "subject_id", nullable = false)
+    @JsonIgnore
+    private Subject subject;
+
+    @Column(nullable = false, length = 255)
+    private String title;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @Column(name = "order_index", nullable = false)
+    private Integer orderIndex = 0;
+
+    @Column(name = "expected_sessions", nullable = false)
+    private Integer expectedSessions = 0;
+
+    @Column(nullable = false)
+    private String status = "active"; // active, archived, draft
+
+    @Column(name = "semester")
+    private String semester; // 1, 2, 3
+
+    @Column(name = "school_year")
+    private String schoolYear;
+
+    @OneToMany(mappedBy = "curriculum", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("sessionNumber ASC")
+    private List<SessionDetail> sessionDetails = new ArrayList<>();
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    public Curriculum() {
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    // Helper methods
+    public void addSessionDetail(SessionDetail detail) {
+        sessionDetails.add(detail);
+        detail.setCurriculum(this);
+    }
+
+    public void removeSessionDetail(SessionDetail detail) {
+        sessionDetails.remove(detail);
+        detail.setCurriculum(null);
+    }
+
+    // Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public Subject getSubject() { return subject; }
+    public void setSubject(Subject subject) { this.subject = subject; }
+
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
+
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+
+    public Integer getOrderIndex() { return orderIndex; }
+    public void setOrderIndex(Integer orderIndex) { this.orderIndex = orderIndex; }
+
+    public Integer getExpectedSessions() { return expectedSessions; }
+    public void setExpectedSessions(Integer expectedSessions) { this.expectedSessions = expectedSessions; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
+    public String getSemester() { return semester; }
+    public void setSemester(String semester) { this.semester = semester; }
+
+    public String getSchoolYear() { return schoolYear; }
+    public void setSchoolYear(String schoolYear) { this.schoolYear = schoolYear; }
+
+    public List<SessionDetail> getSessionDetails() { return sessionDetails; }
+    public void setSessionDetails(List<SessionDetail> sessionDetails) { this.sessionDetails = sessionDetails; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+}package com.management.student_center.entity;
+
+import com.management.student_center.enums.DeviceType;
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "devices")
+public class Device {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Enumerated(EnumType.STRING)
+    private DeviceType type;
+
+    @ManyToOne
+    @JoinColumn(name = "room_id")
+    private Room room;
+
+    // ===== CONSTRUCTORS =====
+    public Device() {}
+
+    public Device(DeviceType type, Room room) {
+        this.type = type;
+        this.room = room;
+    }
+
+    // ===== GETTERS =====
+    public Long getId() {
+        return id;
+    }
+
+    public DeviceType getType() {
+        return type;
+    }
+
+    public Room getRoom() {
+        return room;
+    }
+
+    // ===== SETTERS =====
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setType(DeviceType type) {
+        this.type = type;
+    }
+
+    public void setRoom(Room room) {
+        this.room = room;
+    }
+}package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "feedbacks")
+public class Feedback {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(columnDefinition = "TEXT")
+    private String content;
+
+    private Integer rating; // 1-5
+
+    private LocalDateTime createdAt;
+
+    // Quan hệ với Session
+    @ManyToOne
+    @JoinColumn(name = "sessionId", nullable = false)
+    private Session session;
+
+    // Quan hệ với Student
+    @ManyToOne
+    @JoinColumn(name = "studentId", nullable = false)
+    private Student student;
+
+    public Feedback() {
+        this.createdAt = LocalDateTime.now();
+    }
+
+    // Getter & Setter
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public String getContent() { return content; }
+    public void setContent(String content) { this.content = content; }
+
+    public Integer getRating() { return rating; }
+    public void setRating(Integer rating) { this.rating = rating; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public Session getSession() { return session; }
+    public void setSession(Session session) { this.session = session; }
+
+    public Student getStudent() { return student; }
+    public void setStudent(Student student) { this.student = student; }
+}
+package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "leave_affected_sessions")
+@Getter
+@Setter
+@NoArgsConstructor
+public class LeaveAffectedSession {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "leave_id", nullable = false)
+	private TeacherLeave leave;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "session_id", nullable = false)
+	private Session session;
+
+	@Column(name = "original_teacher_id")
+	private Integer originalTeacherId;
+
+	@Column(name = "replacement_teacher_id")
+	private Integer replacementTeacherId;
+
+	// ✅ SỬA: Thêm đầy đủ các status
+	@Enumerated(EnumType.STRING)
+	@Column(name = "status")
+	private Status status = Status.PENDING;
+
+	@Enumerated(EnumType.STRING)
+	@Column(name = "replacement_response")
+	private ReplacementResponse replacementResponse = ReplacementResponse.PENDING;
+
+	@Column(name = "replacement_response_at")
+	private LocalDateTime replacementResponseAt;
+
+	@Column(name = "processed_at")
+	private LocalDateTime processedAt;
+
+	@Column(name = "admin_note", columnDefinition = "TEXT")
+	private String adminNote;
+
+	// ✅ THÊM: Thời gian admin phân công
+	@Column(name = "assigned_at")
+	private LocalDateTime assignedAt;
+
+	// ✅ THÊM: Lý do từ chối (nếu có)
+	@Column(name = "decline_reason", columnDefinition = "TEXT")
+	private String declineReason;
+	
+	@Column(name = "replacement_salary")
+	private BigDecimal replacementSalary;
+
+	// ================= ENUM =================
+
+	public enum Status {
+		PENDING, // Chưa có giáo viên thay thế
+		ASSIGNED, // ✅ Đã chỉ định, chờ giáo viên phản hồi
+		DECLINED, // ✅ Giáo viên từ chối
+		RESOLVED, // Đã chấp nhận
+		SKIPPED // Hủy buổi học
+	}
+
+	public enum ReplacementResponse {
+		PENDING, ACCEPTED, REJECTED
+	}
+
+	// Getters and Setters
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public TeacherLeave getLeave() {
+		return leave;
+	}
+
+	public void setLeave(TeacherLeave leave) {
+		this.leave = leave;
+	}
+
+	public Session getSession() {
+		return session;
+	}
+
+	public void setSession(Session session) {
+		this.session = session;
+	}
+
+	public Integer getOriginalTeacherId() {
+		return originalTeacherId;
+	}
+
+	public void setOriginalTeacherId(Integer originalTeacherId) {
+		this.originalTeacherId = originalTeacherId;
+	}
+
+	public Integer getReplacementTeacherId() {
+		return replacementTeacherId;
+	}
+
+	public void setReplacementTeacherId(Integer replacementTeacherId) {
+		this.replacementTeacherId = replacementTeacherId;
+	}
+
+	public Status getStatus() {
+		return status;
+	}
+
+	public void setStatus(Status status) {
+		this.status = status;
+	}
+
+	public ReplacementResponse getReplacementResponse() {
+		return replacementResponse;
+	}
+
+	public void setReplacementResponse(ReplacementResponse replacementResponse) {
+		this.replacementResponse = replacementResponse;
+	}
+
+	public LocalDateTime getReplacementResponseAt() {
+		return replacementResponseAt;
+	}
+
+	public void setReplacementResponseAt(LocalDateTime replacementResponseAt) {
+		this.replacementResponseAt = replacementResponseAt;
+	}
+
+	public LocalDateTime getProcessedAt() {
+		return processedAt;
+	}
+
+	public void setProcessedAt(LocalDateTime processedAt) {
+		this.processedAt = processedAt;
+	}
+
+	public String getAdminNote() {
+		return adminNote;
+	}
+
+	public void setAdminNote(String adminNote) {
+		this.adminNote = adminNote;
+	}
+
+	public LocalDateTime getAssignedAt() {
+		return assignedAt;
+	}
+
+	public void setAssignedAt(LocalDateTime assignedAt) {
+		this.assignedAt = assignedAt;
+	}
+
+	public String getDeclineReason() {
+		return declineReason;
+	}
+
+	public void setDeclineReason(String declineReason) {
+		this.declineReason = declineReason;
+	}
+	
+	public BigDecimal getReplacementSalary() {
+	    return replacementSalary;
+	}
+
+	public void setReplacementSalary(BigDecimal replacementSalary) {
+	    this.replacementSalary = replacementSalary;
+	}
+}package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "materials")
+public class Material {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String title;
+
+    private String fileURL;
+
+    private String type; // video | document | slide | other
+
+    private LocalDateTime uploadedAt;
+
+    // Quan hệ với Subject
+    @ManyToOne
+    @JoinColumn(name = "subjectId", nullable = false)
+    private Subject subject;
+
+    // Quan hệ với User
+    @ManyToOne
+    @JoinColumn(name = "uploadedBy", nullable = true)
+    private User uploadedBy;
+
+    public Material() {
+        this.uploadedAt = LocalDateTime.now();
+    }
+
+    // Getter & Setter
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
+
+    public String getFileURL() { return fileURL; }
+    public void setFileURL(String fileURL) { this.fileURL = fileURL; }
+
+    public String getType() { return type; }
+    public void setType(String type) { this.type = type; }
+
+    public LocalDateTime getUploadedAt() { return uploadedAt; }
+    public void setUploadedAt(LocalDateTime uploadedAt) { this.uploadedAt = uploadedAt; }
+
+    public Subject getSubject() { return subject; }
+    public void setSubject(Subject subject) { this.subject = subject; }
+
+    public User getUploadedBy() { return uploadedBy; }
+    public void setUploadedBy(User uploadedBy) { this.uploadedBy = uploadedBy; }
+}
+package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "parentcontacts")
+public class ParentContact {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String fullName;
+
+    private String phoneNumber;
+
+    private String relationship;
+
+    // Quan hệ với Student
+    @ManyToOne
+    @JoinColumn(name = "studentId")
+    private Student student;
+
+    // Constructor mặc định
+    public ParentContact() {}
+
+    // Getter & Setter
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public String getFullName() { return fullName; }
+    public void setFullName(String fullName) { this.fullName = fullName; }
+
+    public String getPhoneNumber() { return phoneNumber; }
+    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+
+    public String getRelationship() { return relationship; }
+    public void setRelationship(String relationship) { this.relationship = relationship; }
+
+    public Student getStudent() { return student; }
+    public void setStudent(Student student) { this.student = student; }
+}
+package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+import java.util.List;
+
+import com.management.student_center.enums.RoomManualStatus;
+
+@Entity
+@Table(name = "rooms")
+public class Room {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;  // Hoặc Integer tùy theo database của bạn
+
+    // ===== BASIC INFO =====
+    private String name;
+
+    @Column(name = "seatCapacity")  // Mapping với cột seatCapacity trong DB
+    private Integer seatCapacity;
+
+    // ===== MANUAL STATUS (override) =====
+    @Enumerated(EnumType.STRING)
+    @Column(name = "manual_status")  // Thêm annotation này để mapping với cột manual_status
+    private RoomManualStatus manualStatus = RoomManualStatus.ACTIVE;
+
+    // ===== RELATIONSHIPS =====
+    @OneToMany(mappedBy = "room")
+    private List<SubjectSchedule> subjectSchedules;
+
+    @OneToMany(mappedBy = "room", fetch = FetchType.LAZY)
+    private List<Session> sessions;
+
+    @OneToMany(mappedBy = "room", fetch = FetchType.LAZY)
+    private List<Device> devices;
+
+    // ===== CONSTRUCTOR =====
+    public Room() {}
+
+    // ===== GETTER / SETTER =====
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+
+    public Integer getSeatCapacity() { return seatCapacity; }
+    public void setSeatCapacity(Integer seatCapacity) { this.seatCapacity = seatCapacity; }
+
+    public RoomManualStatus getManualStatus() { return manualStatus; }
+    public void setManualStatus(RoomManualStatus manualStatus) { this.manualStatus = manualStatus; }
+
+    public List<SubjectSchedule> getSubjectSchedules() { return subjectSchedules; }
+    public void setSubjectSchedules(List<SubjectSchedule> subjectSchedules) { this.subjectSchedules = subjectSchedules; }
+
+    public List<Session> getSessions() { return sessions; }
+    public void setSessions(List<Session> sessions) { this.sessions = sessions; }
+
+    public List<Device> getDevices() { return devices; }
+    public void setDevices(List<Device> devices) { this.devices = devices; }
+}package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+@Entity
+@Table(name = "sessions")
+public class Session {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+
+	private LocalDate sessionDate;
+
+	private LocalTime startTime;
+
+	private LocalTime endTime;
+
+	private String status = "scheduled"; // scheduled | completed | canceled
+
+	// Quan hệ với Subject
+	@ManyToOne
+	@JoinColumn(name = "subjectId", nullable = false)
+	private Subject subject;
+
+	// Quan hệ với SubjectSchedule
+	@ManyToOne
+	@JoinColumn(name = "scheduleId")
+	private SubjectSchedule schedule;
+
+	// Quan hệ với Room
+	@ManyToOne
+	@JoinColumn(name = "roomId")
+	private Room room;
+
+	// Một session có nhiều attendance học sinh
+	@OneToMany(mappedBy = "session")
+	private List<AttendanceStudent> attendanceStudents;
+
+	// Một session có nhiều TeacherAttendance
+	@OneToMany(mappedBy = "session")
+	private List<TeacherAttendance> teacherAttendances;
+
+	// Feedback của học sinh
+	@OneToMany(mappedBy = "session")
+	private List<Feedback> feedbacks;
+
+	@ManyToOne
+	@JoinColumn(name = "planned_session_detail_id")
+	private SessionDetail plannedSessionDetail;
+
+	@Column(name = "actual_topic", columnDefinition = "TEXT")
+	private String actualTopic;
+
+	@Column(name = "actual_content", columnDefinition = "TEXT")
+	private String actualContent;
+
+	@Column(name = "actual_homework", columnDefinition = "TEXT")
+	private String actualHomework;
+
+	@Column(name = "is_follow_plan")
+	private Boolean isFollowPlan = true;
+
+	@Column(name = "deviation_reason", columnDefinition = "TEXT")
+	private String deviationReason;
+
+	@Column(name = "note_for_next_session", columnDefinition = "TEXT")
+	private String noteForNextSession;
+
+	@OneToMany(mappedBy = "sessionInfo", cascade = CascadeType.ALL)
+	@JsonIgnore
+	private List<SessionTeacher> sessionTeachers;
+
+	public SessionDetail getPlannedSessionDetail() {
+		return plannedSessionDetail;
+	}
+
+	public void setPlannedSessionDetail(SessionDetail plannedSessionDetail) {
+		this.plannedSessionDetail = plannedSessionDetail;
+	}
+
+	public String getActualTopic() {
+		return actualTopic;
+	}
+
+	public void setActualTopic(String actualTopic) {
+		this.actualTopic = actualTopic;
+	}
+
+	public String getActualContent() {
+		return actualContent;
+	}
+
+	public void setActualContent(String actualContent) {
+		this.actualContent = actualContent;
+	}
+
+	public String getActualHomework() {
+		return actualHomework;
+	}
+
+	public void setActualHomework(String actualHomework) {
+		this.actualHomework = actualHomework;
+	}
+
+	public Boolean getIsFollowPlan() {
+		return isFollowPlan;
+	}
+
+	public void setIsFollowPlan(Boolean isFollowPlan) {
+		this.isFollowPlan = isFollowPlan;
+	}
+
+	public String getDeviationReason() {
+		return deviationReason;
+	}
+
+	public void setDeviationReason(String deviationReason) {
+		this.deviationReason = deviationReason;
+	}
+
+	public String getNoteForNextSession() {
+		return noteForNextSession;
+	}
+
+	public void setNoteForNextSession(String noteForNextSession) {
+		this.noteForNextSession = noteForNextSession;
+	}
+
+	public Session() {
+	}
+
+	// Getter & Setter
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public LocalDate getSessionDate() {
+		return sessionDate;
+	}
+
+	public void setSessionDate(LocalDate sessionDate) {
+		this.sessionDate = sessionDate;
+	}
+
+	public LocalTime getStartTime() {
+		return startTime;
+	}
+
+	public void setStartTime(LocalTime startTime) {
+		this.startTime = startTime;
+	}
+
+	public LocalTime getEndTime() {
+		return endTime;
+	}
+
+	public void setEndTime(LocalTime endTime) {
+		this.endTime = endTime;
+	}
+
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+
+	public Subject getSubject() {
+		return subject;
+	}
+
+	public void setSubject(Subject subject) {
+		this.subject = subject;
+	}
+
+	public SubjectSchedule getSchedule() {
+		return schedule;
+	}
+
+	public void setSchedule(SubjectSchedule schedule) {
+		this.schedule = schedule;
+	}
+
+	public Room getRoom() {
+		return room;
+	}
+
+	public void setRoom(Room room) {
+		this.room = room;
+	}
+
+	public List<AttendanceStudent> getAttendanceStudents() {
+		return attendanceStudents;
+	}
+
+	public void setAttendanceStudents(List<AttendanceStudent> attendanceStudents) {
+		this.attendanceStudents = attendanceStudents;
+	}
+
+	public List<TeacherAttendance> getTeacherAttendances() {
+		return teacherAttendances;
+	}
+
+	public void setTeacherAttendances(List<TeacherAttendance> teacherAttendances) {
+		this.teacherAttendances = teacherAttendances;
+	}
+
+	public List<Feedback> getFeedbacks() {
+		return feedbacks;
+	}
+
+	public void setFeedbacks(List<Feedback> feedbacks) {
+		this.feedbacks = feedbacks;
+	}
+
+	public List<SessionTeacher> getSessionTeachers() {
+		return sessionTeachers;
+	}
+
+	public void setSessionTeachers(List<SessionTeacher> sessionTeachers) {
+		this.sessionTeachers = sessionTeachers;
+	}
+}
+package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "session_details")
+public class SessionDetail {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "curriculum_id", nullable = false)
+    @JsonIgnore
+    private Curriculum curriculum;
+
+    @Column(name = "session_number", nullable = true)
+    private Integer sessionNumber;
+    
+    @Column(name = "display_order", nullable = false)
+    private Integer displayOrder = 0;
+
+    @Column(nullable = false, length = 500)
+    private String topic;
+
+    @Column(columnDefinition = "TEXT")
+    private String objectives;
+
+    @Column(columnDefinition = "TEXT")
+    private String content;
+
+    @Column(columnDefinition = "TEXT")
+    private String homework;
+
+    @Column(columnDefinition = "TEXT")
+    private String materials;
+
+    @Column(name = "duration_minutes")
+    private Integer durationMinutes = 90;
+
+    @Column(name = "teaching_method")
+    private String teachingMethod;
+
+    @Column(name = "assessment_criteria")
+    private String assessmentCriteria;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    public SessionDetail() {
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    // Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public Curriculum getCurriculum() { return curriculum; }
+    public void setCurriculum(Curriculum curriculum) { this.curriculum = curriculum; }
+
+    public Integer getSessionNumber() { return sessionNumber; }
+    public void setSessionNumber(Integer sessionNumber) { this.sessionNumber = sessionNumber; }
+    
+    public Integer getDisplayOrder() { return displayOrder; }
+    public void setDisplayOrder(Integer displayOrder) { this.displayOrder = displayOrder; }
+
+    public String getTopic() { return topic; }
+    public void setTopic(String topic) { this.topic = topic; }
+
+    public String getObjectives() { return objectives; }
+    public void setObjectives(String objectives) { this.objectives = objectives; }
+
+    public String getContent() { return content; }
+    public void setContent(String content) { this.content = content; }
+
+    public String getHomework() { return homework; }
+    public void setHomework(String homework) { this.homework = homework; }
+
+    public String getMaterials() { return materials; }
+    public void setMaterials(String materials) { this.materials = materials; }
+
+    public Integer getDurationMinutes() { return durationMinutes; }
+    public void setDurationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; }
+
+    public String getTeachingMethod() { return teachingMethod; }
+    public void setTeachingMethod(String teachingMethod) { this.teachingMethod = teachingMethod; }
+
+    public String getAssessmentCriteria() { return assessmentCriteria; }
+    public void setAssessmentCriteria(String assessmentCriteria) { this.assessmentCriteria = assessmentCriteria; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+}package com.management.student_center.entity;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.management.student_center.enums.AssignmentStatus;
+import com.management.student_center.enums.AssignmentType;
+import com.management.student_center.enums.SalaryType;
+import jakarta.persistence.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.List;
+
+@Entity
+@Table(name = "session_teachers", uniqueConstraints = {
+		@UniqueConstraint(name = "uk_session_teacher_unique", columnNames = { "sessionId", "teacherId",
+				"assignmentType" }) })
+public class SessionTeacher {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "sessionId", nullable = false)
+	private Session sessionInfo;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "teacherId", nullable = false)
+	private Teacher teacherInfo;
+
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
+	private AssignmentType assignmentType = AssignmentType.MAIN;
+
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
+	private AssignmentStatus assignmentStatus = AssignmentStatus.ASSIGNED;
+
+	private LocalTime actualStartTime;
+
+	private LocalTime actualEndTime;
+
+	@Column(precision = 5, scale = 2)
+	private BigDecimal workedHours = BigDecimal.ZERO;
+
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
+	private SalaryType salaryType = SalaryType.PER_SESSION;
+
+	@Column(precision = 19, scale = 2)
+	private BigDecimal salaryRate = BigDecimal.ZERO;
+
+	@Column(precision = 19, scale = 2)
+	private BigDecimal baseAmount = BigDecimal.ZERO;
+
+	@Column(precision = 19, scale = 2)
+	private BigDecimal bonusAmount = BigDecimal.ZERO;
+
+	@Column(precision = 19, scale = 2)
+	private BigDecimal penaltyAmount = BigDecimal.ZERO;
+
+	@Column(precision = 19, scale = 2)
+	private BigDecimal finalAmount = BigDecimal.ZERO;
+
+	private Boolean payrollLocked = false;
+
+	@Column(columnDefinition = "TEXT")
+	private String note;
+
+	@CreationTimestamp
+	private LocalDateTime createdAt;
+
+	@UpdateTimestamp
+	private LocalDateTime updatedAt;
+
+	@OneToMany(mappedBy = "sessionTeacherInfo", cascade = CascadeType.ALL, orphanRemoval = true)
+	@JsonIgnore
+	private List<TeacherPaymentDetail> paymentDetails;
+
+	public SessionTeacher() {
+	}
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public Session getSessionInfo() {
+		return sessionInfo;
+	}
+
+	public void setSessionInfo(Session sessionInfo) {
+		this.sessionInfo = sessionInfo;
+	}
+
+	public Teacher getTeacherInfo() {
+		return teacherInfo;
+	}
+
+	public void setTeacherInfo(Teacher teacherInfo) {
+		this.teacherInfo = teacherInfo;
+	}
+
+	public AssignmentType getAssignmentType() {
+		return assignmentType;
+	}
+
+	public void setAssignmentType(AssignmentType assignmentType) {
+		this.assignmentType = assignmentType;
+	}
+
+	public AssignmentStatus getAssignmentStatus() {
+		return assignmentStatus;
+	}
+
+	public void setAssignmentStatus(AssignmentStatus assignmentStatus) {
+		this.assignmentStatus = assignmentStatus;
+	}
+
+	public LocalTime getActualStartTime() {
+		return actualStartTime;
+	}
+
+	public void setActualStartTime(LocalTime actualStartTime) {
+		this.actualStartTime = actualStartTime;
+	}
+
+	public LocalTime getActualEndTime() {
+		return actualEndTime;
+	}
+
+	public void setActualEndTime(LocalTime actualEndTime) {
+		this.actualEndTime = actualEndTime;
+	}
+
+	public BigDecimal getWorkedHours() {
+		return workedHours;
+	}
+
+	public void setWorkedHours(BigDecimal workedHours) {
+		this.workedHours = workedHours;
+	}
+
+	public SalaryType getSalaryType() {
+		return salaryType;
+	}
+
+	public void setSalaryType(SalaryType salaryType) {
+		this.salaryType = salaryType;
+	}
+
+	public BigDecimal getSalaryRate() {
+		return salaryRate;
+	}
+
+	public void setSalaryRate(BigDecimal salaryRate) {
+		this.salaryRate = salaryRate;
+	}
+
+	public BigDecimal getBaseAmount() {
+		return baseAmount;
+	}
+
+	public void setBaseAmount(BigDecimal baseAmount) {
+		this.baseAmount = baseAmount;
+	}
+
+	public BigDecimal getBonusAmount() {
+		return bonusAmount;
+	}
+
+	public void setBonusAmount(BigDecimal bonusAmount) {
+		this.bonusAmount = bonusAmount;
+	}
+
+	public BigDecimal getPenaltyAmount() {
+		return penaltyAmount;
+	}
+
+	public void setPenaltyAmount(BigDecimal penaltyAmount) {
+		this.penaltyAmount = penaltyAmount;
+	}
+
+	public BigDecimal getFinalAmount() {
+		return finalAmount;
+	}
+
+	public void setFinalAmount(BigDecimal finalAmount) {
+		this.finalAmount = finalAmount;
+	}
+
+	public Boolean getPayrollLocked() {
+		return payrollLocked;
+	}
+
+	public void setPayrollLocked(Boolean payrollLocked) {
+		this.payrollLocked = payrollLocked;
+	}
+
+	public String getNote() {
+		return note;
+	}
+
+	public void setNote(String note) {
+		this.note = note;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+}
+package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import org.hibernate.annotations.CreationTimestamp;
+
+@Entity
+@Table(name = "students")
+public class Student {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    // Quan hệ với User
+    @OneToOne
+    @JoinColumn(name = "userId")
+    private User userInfo;
+
+    // Quan hệ với Address
+    @ManyToOne
+    @JoinColumn(name = "addressId")
+    private Address addressInfo;
+
+    private LocalDate dateOfBirth;
+
+    private String grade;
+
+    private String schoolName;
+
+    // Quan hệ với ParentContact
+    @OneToMany(mappedBy = "student", cascade = CascadeType.ALL)
+    @JsonIgnore
+    private List<ParentContact> parentContacts;
+
+    // Quan hệ với StudentSubject
+    @OneToMany(mappedBy = "student", cascade = CascadeType.ALL)
+    @JsonIgnore
+    private List<StudentSubject> studentSubjects;
+
+    // Thêm createdAt và updatedAt
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+
+    @CreationTimestamp
+    private LocalDateTime updatedAt;
+
+    // Constructor mặc định
+    public Student() {}
+
+    // Constructor đầy đủ
+    public Student(Long id, User userInfo, Address addressInfo, LocalDate dateOfBirth,
+                   String grade, String schoolName,
+                   List<ParentContact> parentContacts,
+                   List<StudentSubject> studentSubjects,
+                   LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this.id = id;
+        this.userInfo = userInfo;
+        this.addressInfo = addressInfo;
+        this.dateOfBirth = dateOfBirth;
+        this.grade = grade;
+        this.schoolName = schoolName;
+        this.parentContacts = parentContacts;
+        this.studentSubjects = studentSubjects;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+    }
+
+    // Getter và Setter
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public User getUserInfo() { return userInfo; }
+    public void setUserInfo(User userInfo) { this.userInfo = userInfo; }
+
+    public Address getAddressInfo() { return addressInfo; }
+    public void setAddressInfo(Address addressInfo) { this.addressInfo = addressInfo; }
+
+    public LocalDate getDateOfBirth() { return dateOfBirth; }
+    public void setDateOfBirth(LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
+
+    public String getGrade() { return grade; }
+    public void setGrade(String grade) { this.grade = grade; }
+
+    public String getSchoolName() { return schoolName; }
+    public void setSchoolName(String schoolName) { this.schoolName = schoolName; }
+
+    public List<ParentContact> getParentContacts() { return parentContacts; }
+    public void setParentContacts(List<ParentContact> parentContacts) { this.parentContacts = parentContacts; }
+
+    public List<StudentSubject> getStudentSubjects() { return studentSubjects; }
+    public void setStudentSubjects(List<StudentSubject> studentSubjects) { this.studentSubjects = studentSubjects; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+}
+package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "student_assignments")
+public class StudentAssignment {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne
+    @JoinColumn(name = "assignmentId", nullable = false)
+    private Assignment assignment;
+
+    @ManyToOne
+    @JoinColumn(name = "studentId", nullable = false)
+    private Student student;
+
+    private String submittedStatus = "pending"; // pending | submitted | late
+
+    @Column(columnDefinition = "TEXT")
+    private String feedback;
+
+    public StudentAssignment() {}
+
+    // Getter & Setter
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public Assignment getAssignment() { return assignment; }
+    public void setAssignment(Assignment assignment) { this.assignment = assignment; }
+
+    public Student getStudent() { return student; }
+    public void setStudent(Student student) { this.student = student; }
+
+    public String getSubmittedStatus() { return submittedStatus; }
+    public void setSubmittedStatus(String submittedStatus) { this.submittedStatus = submittedStatus; }
+
+    public String getFeedback() { return feedback; }
+    public void setFeedback(String feedback) { this.feedback = feedback; }
+}
+// 1. StudentCurriculumEvaluation.java - Đánh giá tổng thể Curriculum
+package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "student_curriculum_evaluations", 
+       uniqueConstraints = @UniqueConstraint(columnNames = {"student_id", "curriculum_id"}))
+public class StudentCurriculumEvaluation {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(name = "student_id", nullable = false)
+    private Long studentId;
+    
+    @Column(name = "curriculum_id", nullable = false)
+    private Long curriculumId;
+    
+    @Column(name = "understanding_level")
+    private Integer understandingLevel; // 0-100
+    
+    @Column(name = "overall_progress")
+    private Integer overallProgress; // 0-100
+    
+    @Column(name = "teacher_notes", columnDefinition = "TEXT")
+    private String teacherNotes;
+    
+    @Column(name = "strengths", columnDefinition = "TEXT")
+    private String strengths;
+    
+    @Column(name = "weaknesses", columnDefinition = "TEXT")
+    private String weaknesses;
+    
+    @Column(name = "recommendations", columnDefinition = "TEXT")
+    private String recommendations;
+    
+    @Column(name = "last_updated_by")
+    private Long lastUpdatedBy;
+    
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+    
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+    
+    public StudentCurriculumEvaluation() {
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+    
+    // Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    
+    public Long getStudentId() { return studentId; }
+    public void setStudentId(Long studentId) { this.studentId = studentId; }
+    
+    public Long getCurriculumId() { return curriculumId; }
+    public void setCurriculumId(Long curriculumId) { this.curriculumId = curriculumId; }
+    
+    public Integer getUnderstandingLevel() { return understandingLevel; }
+    public void setUnderstandingLevel(Integer understandingLevel) { this.understandingLevel = understandingLevel; }
+    
+    public Integer getOverallProgress() { return overallProgress; }
+    public void setOverallProgress(Integer overallProgress) { this.overallProgress = overallProgress; }
+    
+    public String getTeacherNotes() { return teacherNotes; }
+    public void setTeacherNotes(String teacherNotes) { this.teacherNotes = teacherNotes; }
+    
+    public String getStrengths() { return strengths; }
+    public void setStrengths(String strengths) { this.strengths = strengths; }
+    
+    public String getWeaknesses() { return weaknesses; }
+    public void setWeaknesses(String weaknesses) { this.weaknesses = weaknesses; }
+    
+    public String getRecommendations() { return recommendations; }
+    public void setRecommendations(String recommendations) { this.recommendations = recommendations; }
+    
+    public Long getLastUpdatedBy() { return lastUpdatedBy; }
+    public void setLastUpdatedBy(Long lastUpdatedBy) { this.lastUpdatedBy = lastUpdatedBy; }
+    
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+}package com.management.student_center.entity;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "student_payment_transactions")
+public class StudentPaymentTransaction {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+
+	@ManyToOne
+	@JoinColumn(name = "student_tuition_id")
+	private StudentTuition studentTuition;
+
+	private BigDecimal amount;
+
+	@Column(name = "payment_method")
+	private String paymentMethod;
+
+	@Column(name = "payment_date")
+	private LocalDateTime paymentDate;
+
+	@Column(columnDefinition = "TEXT")
+	private String note;
+
+	@Column(name = "created_at")
+	private LocalDateTime createdAt;
+
+	@PrePersist
+	public void prePersist() {
+		this.createdAt = LocalDateTime.now();
+
+		if (this.paymentDate == null) {
+			this.paymentDate = LocalDateTime.now();
+		}
+	}
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public StudentTuition getStudentTuition() {
+		return studentTuition;
+	}
+
+	public void setStudentTuition(StudentTuition studentTuition) {
+		this.studentTuition = studentTuition;
+	}
+
+	public BigDecimal getAmount() {
+		return amount;
+	}
+
+	public void setAmount(BigDecimal amount) {
+		this.amount = amount;
+	}
+
+	public String getPaymentMethod() {
+		return paymentMethod;
+	}
+
+	public void setPaymentMethod(String paymentMethod) {
+		this.paymentMethod = paymentMethod;
+	}
+
+	public LocalDateTime getPaymentDate() {
+		return paymentDate;
+	}
+
+	public void setPaymentDate(LocalDateTime paymentDate) {
+		this.paymentDate = paymentDate;
+	}
+
+	public String getNote() {
+		return note;
+	}
+
+	public void setNote(String note) {
+		this.note = note;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+	
+}
+// 2. StudentSessionEvaluation.java - Đánh giá từng buổi học
+package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "student_session_evaluations",
+       uniqueConstraints = @UniqueConstraint(columnNames = {"student_id", "session_detail_id"}))
+public class StudentSessionEvaluation {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(name = "student_id", nullable = false)
+    private Long studentId;
+    
+    @Column(name = "session_detail_id", nullable = false)
+    private Long sessionDetailId;
+    
+    @Column(name = "understanding_level")
+    private Integer understandingLevel; // 0-100
+    
+    @Column(name = "completion_status")
+    private String completionStatus; // COMPLETED, PARTIAL, NOT_STARTED
+    
+    @Column(name = "teacher_notes", columnDefinition = "TEXT")
+    private String teacherNotes;
+    
+    @Column(name = "homework_quality")
+    private Integer homeworkQuality; // 0-100
+    
+    @Column(name = "participation_level")
+    private Integer participationLevel; // 0-100
+    
+    @Column(name = "last_updated_by")
+    private Long lastUpdatedBy;
+    
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+    
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+    
+    public StudentSessionEvaluation() {
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+    
+    // Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    
+    public Long getStudentId() { return studentId; }
+    public void setStudentId(Long studentId) { this.studentId = studentId; }
+    
+    public Long getSessionDetailId() { return sessionDetailId; }
+    public void setSessionDetailId(Long sessionDetailId) { this.sessionDetailId = sessionDetailId; }
+    
+    public Integer getUnderstandingLevel() { return understandingLevel; }
+    public void setUnderstandingLevel(Integer understandingLevel) { this.understandingLevel = understandingLevel; }
+    
+    public String getCompletionStatus() { return completionStatus; }
+    public void setCompletionStatus(String completionStatus) { this.completionStatus = completionStatus; }
+    
+    public String getTeacherNotes() { return teacherNotes; }
+    public void setTeacherNotes(String teacherNotes) { this.teacherNotes = teacherNotes; }
+    
+    public Integer getHomeworkQuality() { return homeworkQuality; }
+    public void setHomeworkQuality(Integer homeworkQuality) { this.homeworkQuality = homeworkQuality; }
+    
+    public Integer getParticipationLevel() { return participationLevel; }
+    public void setParticipationLevel(Integer participationLevel) { this.participationLevel = participationLevel; }
+    
+    public Long getLastUpdatedBy() { return lastUpdatedBy; }
+    public void setLastUpdatedBy(Long lastUpdatedBy) { this.lastUpdatedBy = lastUpdatedBy; }
+    
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+}package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.management.student_center.enums.BillingType;
+import com.management.student_center.enums.PaymentPlanType;
+
+@Entity
+@Table(name = "studentsubjects")
+public class StudentSubject {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    // Quan hệ với Student
+    @ManyToOne
+    @JoinColumn(name = "studentId")
+    @JsonIgnoreProperties({"studentSubjects"})
+    private Student student;
+
+    // Quan hệ với Subject
+    @ManyToOne
+    @JoinColumn(name = "subjectId")
+    @JsonIgnoreProperties({"studentSubjects"})
+    private Subject subject;
+
+    // Ngày đăng ký
+    private LocalDate enrollmentDate;
+    
+    // Thêm cột deleted_at: nếu có giá trị là đã xóa, null là chưa xóa
+    private LocalDate deletedAt;
+
+    // Constructor mặc định
+    public StudentSubject() {}
+
+    // Constructor đầy đủ (không bao gồm deletedAt)
+    public StudentSubject(Long id, Student student, Subject subject, LocalDate enrollmentDate) {
+        this.id = id;
+        this.student = student;
+        this.subject = subject;
+        this.enrollmentDate = enrollmentDate;
+        this.deletedAt = null; // Mặc định chưa xóa
+    }
+    @Column(precision = 19, scale = 2)
+    private BigDecimal feeAmountSnapshot;
+
+    @Enumerated(EnumType.STRING)
+    private BillingType billingTypeSnapshot;
+
+
+	@Enumerated(EnumType.STRING)
+    private PaymentPlanType paymentPlanTypeSnapshot;
+
+    private Integer installmentCountSnapshot;
+    // Constructor đầy đủ (có deletedAt)
+    public StudentSubject(Long id, Student student, Subject subject, LocalDate enrollmentDate, LocalDate deletedAt) {
+        this.id = id;
+        this.student = student;
+        this.subject = subject;
+        this.enrollmentDate = enrollmentDate;
+        this.deletedAt = deletedAt;
+    }
+
+    // Getter & Setter
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public Student getStudent() { return student; }
+    public void setStudent(Student student) { this.student = student; }
+
+    public Subject getSubject() { return subject; }
+    public void setSubject(Subject subject) { this.subject = subject; }
+
+    public LocalDate getEnrollmentDate() { return enrollmentDate; }
+    public void setEnrollmentDate(LocalDate enrollmentDate) { this.enrollmentDate = enrollmentDate; }
+    
+    public LocalDate getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(LocalDate deletedAt) { this.deletedAt = deletedAt; }
+    
+    // Helper method: Kiểm tra bản ghi đã bị xóa chưa
+    public boolean isDeleted() {
+        return this.deletedAt != null;
+    }
+    
+    public BigDecimal getFeeAmountSnapshot() {
+		return feeAmountSnapshot;
+	}
+
+	public void setFeeAmountSnapshot(BigDecimal feeAmountSnapshot) {
+		this.feeAmountSnapshot = feeAmountSnapshot;
+	}
+
+	public BillingType getBillingTypeSnapshot() {
+		return billingTypeSnapshot;
+	}
+
+	public void setBillingTypeSnapshot(BillingType billingTypeSnapshot) {
+		this.billingTypeSnapshot = billingTypeSnapshot;
+	}
+
+	public PaymentPlanType getPaymentPlanTypeSnapshot() {
+		return paymentPlanTypeSnapshot;
+	}
+
+	public void setPaymentPlanTypeSnapshot(PaymentPlanType paymentPlanTypeSnapshot) {
+		this.paymentPlanTypeSnapshot = paymentPlanTypeSnapshot;
+	}
+
+	public Integer getInstallmentCountSnapshot() {
+		return installmentCountSnapshot;
+	}
+
+	public void setInstallmentCountSnapshot(Integer installmentCountSnapshot) {
+		this.installmentCountSnapshot = installmentCountSnapshot;
+	}
+}package com.management.student_center.entity;
+
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.management.student_center.enums.StudentTuitionStatus;
+
+import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Entity
+@Table(name = "student_tuitions")
+public class StudentTuition {
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+
+	@ManyToOne
+	@JoinColumn(name = "student_id")
+	private Student student;
+
+	private int month;
+	private int year;
+
+	private BigDecimal totalAmount; // Tổng tiền phải đóng
+
+	private BigDecimal paidAmount = BigDecimal.ZERO;
+
+	@Enumerated(EnumType.STRING)
+	private StudentTuitionStatus status;
+
+	@Column(columnDefinition = "TEXT")
+	private String notes;
+
+	private LocalDateTime createdAt;
+
+	@PrePersist
+	public void prePersist() {
+		this.createdAt = LocalDateTime.now();
+	}
+
+	@OneToMany(mappedBy = "studentTuition", cascade = CascadeType.ALL)
+	@JsonManagedReference
+	private List<StudentTuitionDetail> details;
+
+	private String invoiceCode;
+
+	private LocalDate dueDate;
+
+	private Boolean tuitionLocked = false;
+
+	public String getInvoiceCode() {
+		return invoiceCode;
+	}
+
+	public void setInvoiceCode(String invoiceCode) {
+		this.invoiceCode = invoiceCode;
+	}
+
+	public LocalDate getDueDate() {
+		return dueDate;
+	}
+
+	public void setDueDate(LocalDate dueDate) {
+		this.dueDate = dueDate;
+	}
+
+	public Boolean getTuitionLocked() {
+		return tuitionLocked;
+	}
+
+	public void setTuitionLocked(Boolean tuitionLocked) {
+		this.tuitionLocked = tuitionLocked;
+	}
+
+	// --- Getters & Setters ---
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public Student getStudent() {
+		return student;
+	}
+
+	public void setStudent(Student student) {
+		this.student = student;
+	}
+
+	public int getMonth() {
+		return month;
+	}
+
+	public void setMonth(int month) {
+		this.month = month;
+	}
+
+	public int getYear() {
+		return year;
+	}
+
+	public void setYear(int year) {
+		this.year = year;
+	}
+
+	public BigDecimal getTotalAmount() {
+		return totalAmount;
+	}
+
+	public void setTotalAmount(BigDecimal totalAmount) {
+		this.totalAmount = totalAmount;
+	}
+
+	public BigDecimal getPaidAmount() {
+		return paidAmount;
+	}
+
+	public void setPaidAmount(BigDecimal paidAmount) {
+		this.paidAmount = paidAmount;
+	}
+
+	public StudentTuitionStatus getStatus() {
+		return status;
+	}
+
+	public void setStatus(StudentTuitionStatus status) {
+		this.status = status;
+	}
+
+	public String getNotes() {
+		return notes;
+	}
+
+	public void setNotes(String notes) {
+		this.notes = notes;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public List<StudentTuitionDetail> getDetails() {
+		return details;
+	}
+
+	public void setDetails(List<StudentTuitionDetail> details) {
+		this.details = details;
+	}
+
+	public BigDecimal getRemainingAmount() {
+		BigDecimal total = this.totalAmount != null ? this.totalAmount : BigDecimal.ZERO;
+		BigDecimal paid = this.paidAmount != null ? this.paidAmount : BigDecimal.ZERO;
+		BigDecimal remaining = total.subtract(paid);
+		// Đảm bảo không trả về số âm
+		return remaining.compareTo(BigDecimal.ZERO) > 0 ? remaining : BigDecimal.ZERO;
+	}
+
+}package com.management.student_center.entity;
+
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.management.student_center.enums.BillingType;
+import com.management.student_center.enums.PaymentPlanType;
+
+import jakarta.persistence.*;
+import java.math.BigDecimal;
+
+@Entity
+@Table(name = "student_tuition_details")
+public class StudentTuitionDetail {
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+
+	@ManyToOne
+	@JoinColumn(name = "student_tuition_id")
+	@JsonBackReference
+	private StudentTuition studentTuition;
+
+	@ManyToOne
+	@JoinColumn(name = "subject_id")
+	private Subject subject;
+
+	private int attendedSessions; // Số buổi đi học
+	private float totalHours; // Tổng số giờ học
+	private BigDecimal totalMoney; // totalHours * hourlyRate
+
+	@Column(name = "note")
+	private String note;
+
+	@Enumerated(EnumType.STRING)
+	private BillingType billingType;
+
+	@Enumerated(EnumType.STRING)
+	private PaymentPlanType paymentPlanType;
+
+	private Integer installmentNo;
+
+	private Integer totalInstallments;
+
+	private BigDecimal unitPrice;
+
+	// --- Getters & Setters ---
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public StudentTuition getStudentTuition() {
+		return studentTuition;
+	}
+
+	public void setStudentTuition(StudentTuition studentTuition) {
+		this.studentTuition = studentTuition;
+	}
+
+	public Subject getSubject() {
+		return subject;
+	}
+
+	public void setSubject(Subject subject) {
+		this.subject = subject;
+	}
+
+	public int getAttendedSessions() {
+		return attendedSessions;
+	}
+
+	public void setAttendedSessions(int attendedSessions) {
+		this.attendedSessions = attendedSessions;
+	}
+
+	public float getTotalHours() {
+		return totalHours;
+	}
+
+	public void setTotalHours(float totalHours) {
+		this.totalHours = totalHours;
+	}
+
+	public BigDecimal getTotalMoney() {
+		return totalMoney;
+	}
+
+	public void setTotalMoney(BigDecimal totalMoney) {
+		this.totalMoney = totalMoney;
+	}
+
+	public String getNote() {
+		return note;
+	}
+
+	public void setNote(String note) {
+		this.note = note;
+	}
+
+	public BillingType getBillingType() {
+		return billingType;
+	}
+
+	public void setBillingType(BillingType billingType) {
+		this.billingType = billingType;
+	}
+
+	public PaymentPlanType getPaymentPlanType() {
+		return paymentPlanType;
+	}
+
+	public void setPaymentPlanType(PaymentPlanType paymentPlanType) {
+		this.paymentPlanType = paymentPlanType;
+	}
+
+	public Integer getInstallmentNo() {
+		return installmentNo;
+	}
+
+	public void setInstallmentNo(Integer installmentNo) {
+		this.installmentNo = installmentNo;
+	}
+
+	public Integer getTotalInstallments() {
+		return totalInstallments;
+	}
+
+	public void setTotalInstallments(Integer totalInstallments) {
+		this.totalInstallments = totalInstallments;
+	}
+
+	public BigDecimal getUnitPrice() {
+		return unitPrice;
+	}
+
+	public void setUnitPrice(BigDecimal unitPrice) {
+		this.unitPrice = unitPrice;
+	}
+}package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.management.student_center.enums.BillingType;
+import com.management.student_center.enums.PaymentPlanType;
+
+import java.time.LocalDateTime;
+@JsonIgnoreProperties({
+    "hibernateLazyInitializer",
+    "handler"
+})
+@Entity
+@Table(name = "subjects")
+public class Subject {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String name;
+
+    private String grade;
+
+    private BigDecimal price; // per hour
+
+    @Column(nullable = false)
+    private String status = "active";
+
+    @Column(nullable = false)
+    private Integer maxStudents = 30;
+
+    @Column(nullable = false)
+    private Integer sessionsPerWeek = 1;
+
+    private String image;
+
+    @Column(columnDefinition = "TEXT")
+    private String note;
+    
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "subject_type_id", nullable = true)
+    private SubjectType subjectType;
+
+    // Quan hệ với StudentSubject
+    @OneToMany(mappedBy = "subject")
+    @JsonIgnore
+    private List<StudentSubject> studentSubjects;
+
+    // Quan hệ với TeacherSubject
+    @OneToMany(mappedBy = "subject")
+    @JsonIgnore
+    private List<TeacherSubject> teacherSubjects;
+
+    // Add createdAt and updatedAt fields
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(nullable = false)
+    private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "subject", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("orderIndex ASC")
+    @JsonIgnore
+    private List<Curriculum> curriculums = new ArrayList<>();
+
+    // Constructor mặc định
+    public Subject() {
+        // Set createdAt and updatedAt to the current time on creation
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    @Enumerated(EnumType.STRING)
+    private BillingType billingType;
+
+    public BillingType getBillingType() {
+		return billingType;
+	}
+
+	public void setBillingType(BillingType billingType) {
+		this.billingType = billingType;
+	}
+
+	public PaymentPlanType getPaymentPlanType() {
+		return paymentPlanType;
+	}
+
+	public void setPaymentPlanType(PaymentPlanType paymentPlanType) {
+		this.paymentPlanType = paymentPlanType;
+	}
+
+	public Integer getInstallmentCount() {
+		return installmentCount;
+	}
+
+	public void setInstallmentCount(Integer installmentCount) {
+		this.installmentCount = installmentCount;
+	}
+
+	@Enumerated(EnumType.STRING)
+    private PaymentPlanType paymentPlanType;
+
+    private Integer installmentCount;
+    
+    
+    // Getter & Setter methods for createdAt and updatedAt
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    // Existing Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+
+    public String getGrade() { return grade; }
+    public void setGrade(String grade) { this.grade = grade; }
+
+    public BigDecimal getPrice() { return price; }
+    public void setPrice(BigDecimal price) { this.price = price; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
+    public Integer getMaxStudents() { return maxStudents; }
+    public void setMaxStudents(Integer maxStudents) { this.maxStudents = maxStudents; }
+
+    public Integer getSessionsPerWeek() { return sessionsPerWeek; }
+    public void setSessionsPerWeek(Integer sessionsPerWeek) { this.sessionsPerWeek = sessionsPerWeek; }
+
+    public String getImage() { return image; }
+    public void setImage(String image) { this.image = image; }
+
+    public String getNote() { return note; }
+    public void setNote(String note) { this.note = note; }
+
+    public List<StudentSubject> getStudentSubjects() { return studentSubjects; }
+    public void setStudentSubjects(List<StudentSubject> studentSubjects) { this.studentSubjects = studentSubjects; }
+
+    public List<TeacherSubject> getTeacherSubjects() { return teacherSubjects; }
+    public void setTeacherSubjects(List<TeacherSubject> teacherSubjects) { this.teacherSubjects = teacherSubjects; }
+
+    @Transient 
+    private Long currentStudents;
+
+    public Long getCurrentStudents() {
+        return currentStudents;
+    }
+
+    public void setCurrentStudents(Long currentStudents) {
+        this.currentStudents = currentStudents;
+    }
+    
+    public SubjectType getSubjectType() {
+        return subjectType;
+    }
+
+    public void setSubjectType(SubjectType subjectType) {
+        this.subjectType = subjectType;
+    }
+    
+    public List<Curriculum> getCurriculums() { return curriculums; }
+    public void setCurriculums(List<Curriculum> curriculums) { this.curriculums = curriculums; }
+}
+package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.List;
+
+@Entity
+@Table(name = "subject_schedules")
+public class SubjectSchedule {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    // Lịch học thuộc về 1 môn học
+    @ManyToOne
+    @JoinColumn(name = "subjectId", nullable = false)
+    private Subject subject;
+
+    // Lịch học diễn ra ở 1 phòng
+    @ManyToOne
+    @JoinColumn(name = "roomId")
+    private Room room;
+
+    // Một lịch học tạo ra nhiều buổi học (Session)
+    @OneToMany(mappedBy = "schedule", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Session> sessions;
+
+    private Integer dayOfWeek; // 0=Chủ nhật, 1=Thứ 2, ... 6=Thứ 7
+
+    private LocalTime startTime;
+    private LocalTime endTime;
+
+    private LocalDate startDate;
+    private LocalDate endDate;
+
+    public SubjectSchedule() {}
+
+    // Getter & Setter
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public Subject getSubject() { return subject; }
+    public void setSubject(Subject subject) { this.subject = subject; }
+
+    public Room getRoom() { return room; }
+    public void setRoom(Room room) { this.room = room; }
+
+    public List<Session> getSessions() { return sessions; }
+    public void setSessions(List<Session> sessions) { this.sessions = sessions; }
+
+    public Integer getDayOfWeek() { return dayOfWeek; }
+    public void setDayOfWeek(Integer dayOfWeek) { this.dayOfWeek = dayOfWeek; }
+
+    public LocalTime getStartTime() { return startTime; }
+    public void setStartTime(LocalTime startTime) { this.startTime = startTime; }
+
+    public LocalTime getEndTime() { return endTime; }
+    public void setEndTime(LocalTime endTime) { this.endTime = endTime; }
+
+    public LocalDate getStartDate() { return startDate; }
+    public void setStartDate(LocalDate startDate) { this.startDate = startDate; }
+
+    public LocalDate getEndDate() { return endDate; }
+    public void setEndDate(LocalDate endDate) { this.endDate = endDate; }
+}
+package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@Entity
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@Table(name = "subject_types",
+       uniqueConstraints = @UniqueConstraint(columnNames = {"name", "academic_level_id"}))
+public class SubjectType {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private String name; // Toán, Văn, Anh
+
+    private String slug; // toan-thpt (optional)
+
+    private String icon; // icon UI (optional)
+
+    @ManyToOne
+    @JoinColumn(name = "academic_level_id", nullable = false)
+    private AcademicLevel academicLevel;
+
+    @OneToMany(mappedBy = "subjectType")
+    @JsonIgnore
+    private List<Subject> subjects;
+
+    // ===== Getter & Setter =====
+    public Long getId() { return id; }
+
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+
+    public String getSlug() { return slug; }
+    public void setSlug(String slug) { this.slug = slug; }
+
+    public String getIcon() { return icon; }
+    public void setIcon(String icon) { this.icon = icon; }
+
+    public AcademicLevel getAcademicLevel() { return academicLevel; }
+    public void setAcademicLevel(AcademicLevel academicLevel) { this.academicLevel = academicLevel; }
+
+    public List<Subject> getSubjects() { return subjects; }
+    public void setSubjects(List<Subject> subjects) { this.subjects = subjects; }
+}package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+@Entity
+@Table(name = "teachers")
+public class Teacher {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    // Quan hệ với User
+    @OneToOne
+    @JoinColumn(name = "userId")
+    private User userInfo;
+
+    // Quan hệ với Address
+    @ManyToOne
+    @JoinColumn(name = "addressId")
+    private Address addressInfo;
+
+    private LocalDate dateOfBirth;
+
+    private String specialty;
+
+    // Quan hệ với TeacherSubject
+    @OneToMany(mappedBy = "teacher", cascade = CascadeType.ALL)
+    @JsonIgnore
+    private List<TeacherSubject> teacherSubjects;
+
+    // Quan hệ với TeacherPayment
+    @OneToMany(mappedBy = "teacherInfo", cascade = CascadeType.ALL)
+    @JsonIgnore
+    private List<TeacherPayment> teacherPayments;
+    
+    @OneToMany(mappedBy = "teacherInfo", cascade = CascadeType.ALL)
+    @JsonIgnore
+    private List<SessionTeacher> sessionTeachers;
+    
+    public List<SessionTeacher> getSessionTeachers() {
+		return sessionTeachers;
+	}
+
+	public void setSessionTeachers(List<SessionTeacher> sessionTeachers) {
+		this.sessionTeachers = sessionTeachers;
+	}
+	@CreationTimestamp
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+
+    // Constructor mặc định
+    public Teacher() {}
+
+    // Constructor đầy đủ
+    public Teacher(Long id, User userInfo, Address addressInfo, LocalDate dateOfBirth,
+                   String specialty, List<TeacherSubject> teacherSubjects,
+                   List<TeacherPayment> teacherPayments) {
+        this.id = id;
+        this.userInfo = userInfo;
+        this.addressInfo = addressInfo;
+        this.dateOfBirth = dateOfBirth;
+        this.specialty = specialty;
+        this.teacherSubjects = teacherSubjects;
+        this.teacherPayments = teacherPayments;
+    }
+
+    // Getter và Setter
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public User getUserInfo() { return userInfo; }
+    public void setUserInfo(User userInfo) { this.userInfo = userInfo; }
+
+    public Address getAddressInfo() { return addressInfo; }
+    public void setAddressInfo(Address addressInfo) { this.addressInfo = addressInfo; }
+
+    public LocalDate getDateOfBirth() { return dateOfBirth; }
+    public void setDateOfBirth(LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
+
+    public String getSpecialty() { return specialty; }
+    public void setSpecialty(String specialty) { this.specialty = specialty; }
+
+    public List<TeacherSubject> getTeacherSubjects() { return teacherSubjects; }
+    public void setTeacherSubjects(List<TeacherSubject> teacherSubjects) { this.teacherSubjects = teacherSubjects; }
+
+    public List<TeacherPayment> getTeacherPayments() { return teacherPayments; }
+    public void setTeacherPayments(List<TeacherPayment> teacherPayments) { this.teacherPayments = teacherPayments; }
+    
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+}
+package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "teacher_attendances")
+public class TeacherAttendance {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne
+    @JoinColumn(name = "sessionId", nullable = false)
+    private Session session;
+
+    @ManyToOne
+    @JoinColumn(name = "teacherId", nullable = false)
+    private Teacher teacher;
+
+    private String status = "present"; // present | absent | late
+
+    @Column(columnDefinition = "TEXT")
+    private String note;
+
+    public TeacherAttendance() {}
+
+    // Getter & Setter
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public Session getSession() { return session; }
+    public void setSession(Session session) { this.session = session; }
+
+    public Teacher getTeacher() { return teacher; }
+    public void setTeacher(Teacher teacher) { this.teacher = teacher; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
+    public String getNote() { return note; }
+    public void setNote(String note) { this.note = note; }
+}
+package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.List;
+
+@Entity
+@Table(name = "teacher_leaves")
+@Getter
+@Setter
+@NoArgsConstructor
+public class TeacherLeave {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+
+	/**
+	 * Giáo viên xin nghỉ
+	 */
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "teacher_id", nullable = false)
+	private Teacher teacher;
+
+	/**
+	 * Ngày bắt đầu nghỉ
+	 */
+	@Column(name = "start_date", nullable = false)
+	private LocalDate startDate;
+
+	/**
+	 * Ngày kết thúc nghỉ
+	 */
+	@Column(name = "end_date", nullable = false)
+	private LocalDate endDate;
+
+	/**
+	 * Nghỉ theo giờ (optional) Ví dụ: 07:00 -> 11:00
+	 */
+	@Column(name = "start_time")
+	private LocalTime startTime;
+
+	@Column(name = "end_time")
+	private LocalTime endTime;
+
+	/**
+	 * Lý do nghỉ
+	 */
+	@Column(columnDefinition = "TEXT")
+	private String reason;
+
+	/**
+	 * SICK, ANNUAL,...
+	 */
+	@Column(name = "leave_type", nullable = false, length = 50)
+	private String leaveType;
+
+	/**
+	 * PENDING, APPROVED, REJECTED, CANCELLED
+	 */
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, length = 20)
+	private LeaveStatus status = LeaveStatus.PENDING;
+
+	/**
+	 * Admin duyệt
+	 */
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "approver_id")
+	private User approver;
+
+	/**
+	 * Thời gian duyệt
+	 */
+	@Column(name = "approved_at")
+	private LocalDateTime approvedAt;
+
+	/**
+	 * CANCEL hoặc REPLACE
+	 */
+	@Enumerated(EnumType.STRING)
+	@Column(name = "affect_type")
+	private AffectType affectType = AffectType.CANCEL;
+
+	/**
+	 * Đã xử lý toàn bộ session chưa
+	 */
+	@Column(name = "processed")
+	private Boolean processed = false;
+
+	/**
+	 * Danh sách session bị ảnh hưởng
+	 */
+	@OneToMany(mappedBy = "leave", cascade = CascadeType.ALL)
+	private List<LeaveAffectedSession> affectedSessions;
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public Teacher getTeacher() {
+		return teacher;
+	}
+
+	public void setTeacher(Teacher teacher) {
+		this.teacher = teacher;
+	}
+
+	public LocalDate getStartDate() {
+		return startDate;
+	}
+
+	public void setStartDate(LocalDate startDate) {
+		this.startDate = startDate;
+	}
+
+	public LocalDate getEndDate() {
+		return endDate;
+	}
+
+	public void setEndDate(LocalDate endDate) {
+		this.endDate = endDate;
+	}
+
+	public LocalTime getStartTime() {
+		return startTime;
+	}
+
+	public void setStartTime(LocalTime startTime) {
+		this.startTime = startTime;
+	}
+
+	public LocalTime getEndTime() {
+		return endTime;
+	}
+
+	public void setEndTime(LocalTime endTime) {
+		this.endTime = endTime;
+	}
+
+	public String getReason() {
+		return reason;
+	}
+
+	public void setReason(String reason) {
+		this.reason = reason;
+	}
+
+	public String getLeaveType() {
+		return leaveType;
+	}
+
+	public void setLeaveType(String leaveType) {
+		this.leaveType = leaveType;
+	}
+
+	public LeaveStatus getStatus() {
+		return status;
+	}
+
+	public void setStatus(LeaveStatus status) {
+		this.status = status;
+	}
+
+	public User getApprover() {
+		return approver;
+	}
+
+	public void setApprover(User approver) {
+		this.approver = approver;
+	}
+
+	public LocalDateTime getApprovedAt() {
+		return approvedAt;
+	}
+
+	public void setApprovedAt(LocalDateTime approvedAt) {
+		this.approvedAt = approvedAt;
+	}
+
+	public AffectType getAffectType() {
+		return affectType;
+	}
+
+	public void setAffectType(AffectType affectType) {
+		this.affectType = affectType;
+	}
+
+	public Boolean getProcessed() {
+		return processed;
+	}
+
+	public void setProcessed(Boolean processed) {
+		this.processed = processed;
+	}
+
+	public List<LeaveAffectedSession> getAffectedSessions() {
+		return affectedSessions;
+	}
+
+	public void setAffectedSessions(List<LeaveAffectedSession> affectedSessions) {
+		this.affectedSessions = affectedSessions;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+	@CreationTimestamp
+	@Column(name = "created_at", updatable = false)
+	private LocalDateTime createdAt;
+
+	@UpdateTimestamp
+	@Column(name = "updated_at")
+	private LocalDateTime updatedAt;
+
+	// ================= ENUM =================
+
+	public enum AffectType {
+		CANCEL, REPLACE
+	}
+
+	public enum LeaveStatus {
+		PENDING, APPROVED, REJECTED, CANCELLED
+	}
+}package com.management.student_center.entity;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.management.student_center.enums.TeacherPaymentStatus;
+import jakarta.persistence.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Entity
+@Table(name = "teacherpayments", uniqueConstraints = {
+		@UniqueConstraint(name = "uk_teacher_month_year", columnNames = { "teacherId", "month", "year" }) })
+public class TeacherPayment {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Integer id;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "teacherId", nullable = false)
+	private Teacher teacherInfo;
+
+	@Column(nullable = false, precision = 19, scale = 2)
+	private BigDecimal amount = BigDecimal.ZERO;
+
+	@Column(precision = 19, scale = 2)
+	private BigDecimal paidAmount = BigDecimal.ZERO;
+
+	private Integer totalSessions = 0;
+
+	private LocalDate paymentDate;
+
+	private Integer month;
+
+	private Integer year;
+
+	@Enumerated(EnumType.STRING)
+	private TeacherPaymentStatus status = TeacherPaymentStatus.DRAFT;
+
+	@Column(columnDefinition = "TEXT")
+	private String notes;
+
+	@Column(columnDefinition = "TEXT")
+	private String payrollNote;
+
+	@Column(columnDefinition = "TEXT")
+	private String teacherFeedback;
+
+	private LocalDateTime teacherConfirmedAt;
+
+	private Integer teacherConfirmedBy;
+
+	private LocalDateTime finalizedAt;
+
+	private Integer finalizedBy;
+	
+	@Column(name = "revision_no", nullable = false)
+	private Integer revisionNo = 1;
+
+	@Column(name = "previous_amount", precision = 19, scale = 2)
+	private BigDecimal previousAmount;
+
+	@Column(name = "last_adjustment_reason", columnDefinition = "TEXT")
+	private String lastAdjustmentReason;
+
+	@Column(name = "adjusted_at")
+	private LocalDateTime adjustedAt;
+
+	@OneToMany(mappedBy = "paymentInfo", cascade = CascadeType.ALL, orphanRemoval = true)
+	@JsonIgnore
+	private List<TeacherPaymentDetail> paymentDetails;
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+	@CreationTimestamp
+	private LocalDateTime createdAt;
+
+	@UpdateTimestamp
+	private LocalDateTime updatedAt;
+
+	public TeacherPayment() {
+	}
+
+	public Integer getId() {
+		return id;
+	}
+
+	public void setId(Integer id) {
+		this.id = id;
+	}
+
+	public Teacher getTeacherInfo() {
+		return teacherInfo;
+	}
+
+	public void setTeacherInfo(Teacher teacherInfo) {
+		this.teacherInfo = teacherInfo;
+	}
+
+	public BigDecimal getAmount() {
+		return amount;
+	}
+
+	public void setAmount(BigDecimal amount) {
+		this.amount = amount;
+	}
+
+	public BigDecimal getPaidAmount() {
+		return paidAmount;
+	}
+
+	public void setPaidAmount(BigDecimal paidAmount) {
+		this.paidAmount = paidAmount;
+	}
+
+	public Integer getTotalSessions() {
+		return totalSessions;
+	}
+
+	public void setTotalSessions(Integer totalSessions) {
+		this.totalSessions = totalSessions;
+	}
+
+	public LocalDate getPaymentDate() {
+		return paymentDate;
+	}
+
+	public void setPaymentDate(LocalDate paymentDate) {
+		this.paymentDate = paymentDate;
+	}
+
+	public Integer getMonth() {
+		return month;
+	}
+
+	public void setMonth(Integer month) {
+		this.month = month;
+	}
+
+	public Integer getYear() {
+		return year;
+	}
+
+	public void setYear(Integer year) {
+		this.year = year;
+	}
+
+	public TeacherPaymentStatus getStatus() {
+		return status;
+	}
+
+	public void setStatus(TeacherPaymentStatus status) {
+		this.status = status;
+	}
+
+	public String getNotes() {
+		return notes;
+	}
+
+	public void setNotes(String notes) {
+		this.notes = notes;
+	}
+
+	public String getPayrollNote() {
+		return payrollNote;
+	}
+
+	public void setPayrollNote(String payrollNote) {
+		this.payrollNote = payrollNote;
+	}
+
+	public String getTeacherFeedback() {
+		return teacherFeedback;
+	}
+
+	public void setTeacherFeedback(String teacherFeedback) {
+		this.teacherFeedback = teacherFeedback;
+	}
+
+	public LocalDateTime getTeacherConfirmedAt() {
+		return teacherConfirmedAt;
+	}
+
+	public void setTeacherConfirmedAt(LocalDateTime teacherConfirmedAt) {
+		this.teacherConfirmedAt = teacherConfirmedAt;
+	}
+
+	public Integer getTeacherConfirmedBy() {
+		return teacherConfirmedBy;
+	}
+
+	public void setTeacherConfirmedBy(Integer teacherConfirmedBy) {
+		this.teacherConfirmedBy = teacherConfirmedBy;
+	}
+
+	public LocalDateTime getFinalizedAt() {
+		return finalizedAt;
+	}
+
+	public void setFinalizedAt(LocalDateTime finalizedAt) {
+		this.finalizedAt = finalizedAt;
+	}
+
+	public Integer getFinalizedBy() {
+		return finalizedBy;
+	}
+
+	public void setFinalizedBy(Integer finalizedBy) {
+		this.finalizedBy = finalizedBy;
+	}
+
+	public List<TeacherPaymentDetail> getPaymentDetails() {
+		return paymentDetails;
+	}
+
+	public void setPaymentDetails(List<TeacherPaymentDetail> paymentDetails) {
+		this.paymentDetails = paymentDetails;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public Integer getRevisionNo() {
+		return revisionNo;
+	}
+
+	public void setRevisionNo(Integer revisionNo) {
+		this.revisionNo = revisionNo;
+	}
+
+	public BigDecimal getPreviousAmount() {
+		return previousAmount;
+	}
+
+	public void setPreviousAmount(BigDecimal previousAmount) {
+		this.previousAmount = previousAmount;
+	}
+
+	public String getLastAdjustmentReason() {
+		return lastAdjustmentReason;
+	}
+
+	public void setLastAdjustmentReason(String lastAdjustmentReason) {
+		this.lastAdjustmentReason = lastAdjustmentReason;
+	}
+
+	public LocalDateTime getAdjustedAt() {
+		return adjustedAt;
+	}
+
+	public void setAdjustedAt(LocalDateTime adjustedAt) {
+		this.adjustedAt = adjustedAt;
+	}
+	
+	
+}
+package com.management.student_center.entity;
+
+import com.management.student_center.enums.SalaryType;
+import jakarta.persistence.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "teacherpaymentdetails", uniqueConstraints = {
+		@UniqueConstraint(name = "uk_payment_session_teacher", columnNames = { "paymentId", "sessionTeacherId" }) })
+public class TeacherPaymentDetail {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "paymentId", nullable = false)
+	private TeacherPayment paymentInfo;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "sessionTeacherId", nullable = false)
+	private SessionTeacher sessionTeacherInfo;
+
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
+	private SalaryType salaryType = SalaryType.PER_SESSION;
+
+	@Column(nullable = false,precision = 19, scale = 2)
+	private BigDecimal salaryRate = BigDecimal.ZERO;
+
+	@Column(nullable = false,precision = 5, scale = 2)
+	private BigDecimal workedHours = BigDecimal.ZERO;
+
+	@Column(nullable = false,precision = 19, scale = 2)
+	private BigDecimal baseAmount = BigDecimal.ZERO;
+
+	@Column(nullable = false,precision = 19, scale = 2)
+	private BigDecimal bonusAmount = BigDecimal.ZERO;
+
+	@Column(nullable = false,precision = 19, scale = 2)
+	private BigDecimal penaltyAmount = BigDecimal.ZERO;
+
+	@Column(nullable = false,precision = 19, scale = 2)
+	private BigDecimal finalAmount = BigDecimal.ZERO;
+
+	private LocalDate payrollDate;
+
+	@Column(columnDefinition = "TEXT")
+	private String note;
+
+	@CreationTimestamp
+	private LocalDateTime createdAt;
+
+	@UpdateTimestamp
+	private LocalDateTime updatedAt;
+
+	public TeacherPaymentDetail() {
+	}
+
+	public Long getId() {
+		return id;
+	}
+
+	public TeacherPayment getPaymentInfo() {
+		return paymentInfo;
+	}
+
+	public void setPaymentInfo(TeacherPayment paymentInfo) {
+		this.paymentInfo = paymentInfo;
+	}
+
+	public SessionTeacher getSessionTeacherInfo() {
+		return sessionTeacherInfo;
+	}
+
+	public void setSessionTeacherInfo(SessionTeacher sessionTeacherInfo) {
+		this.sessionTeacherInfo = sessionTeacherInfo;
+	}
+
+	public SalaryType getSalaryType() {
+		return salaryType;
+	}
+
+	public void setSalaryType(SalaryType salaryType) {
+		this.salaryType = salaryType;
+	}
+
+	public BigDecimal getSalaryRate() {
+		return salaryRate;
+	}
+
+	public void setSalaryRate(BigDecimal salaryRate) {
+		this.salaryRate = salaryRate;
+	}
+
+	public BigDecimal getWorkedHours() {
+		return workedHours;
+	}
+
+	public void setWorkedHours(BigDecimal workedHours) {
+		this.workedHours = workedHours;
+	}
+
+	public BigDecimal getBaseAmount() {
+		return baseAmount;
+	}
+
+	public void setBaseAmount(BigDecimal baseAmount) {
+		this.baseAmount = baseAmount;
+	}
+
+	public BigDecimal getBonusAmount() {
+		return bonusAmount;
+	}
+
+	public void setBonusAmount(BigDecimal bonusAmount) {
+		this.bonusAmount = bonusAmount;
+	}
+
+	public BigDecimal getPenaltyAmount() {
+		return penaltyAmount;
+	}
+
+	public void setPenaltyAmount(BigDecimal penaltyAmount) {
+		this.penaltyAmount = penaltyAmount;
+	}
+
+	public BigDecimal getFinalAmount() {
+		return finalAmount;
+	}
+
+	public void setFinalAmount(BigDecimal finalAmount) {
+		this.finalAmount = finalAmount;
+	}
+
+	public LocalDate getPayrollDate() {
+		return payrollDate;
+	}
+
+	public void setPayrollDate(LocalDate payrollDate) {
+		this.payrollDate = payrollDate;
+	}
+
+	public String getNote() {
+		return note;
+	}
+
+	public void setNote(String note) {
+		this.note = note;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+}
+package com.management.student_center.entity;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "teacher_payment_history")
+public class TeacherPaymentHistory {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+
+    @ManyToOne
+    @JoinColumn(name = "payment_id")
+    private TeacherPayment paymentInfo;
+
+    @Column(name = "revision_no")
+    private Integer revisionNo;
+
+    @Column(name = "old_status")
+    private String oldStatus;
+
+    @Column(name = "new_status")
+    private String newStatus;
+
+    @Column(precision = 15, scale = 2)
+    private BigDecimal amount;
+
+    @Column(name = "teacher_feedback", columnDefinition = "TEXT")
+    private String teacherFeedback;
+
+    @Column(name = "action_note", columnDefinition = "TEXT")
+    private String actionNote;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
+	public Integer getId() {
+		return id;
+	}
+
+	public void setId(Integer id) {
+		this.id = id;
+	}
+
+	public TeacherPayment getPaymentInfo() {
+		return paymentInfo;
+	}
+
+	public void setPaymentInfo(TeacherPayment paymentInfo) {
+		this.paymentInfo = paymentInfo;
+	}
+
+	public Integer getRevisionNo() {
+		return revisionNo;
+	}
+
+	public void setRevisionNo(Integer revisionNo) {
+		this.revisionNo = revisionNo;
+	}
+
+	public String getOldStatus() {
+		return oldStatus;
+	}
+
+	public void setOldStatus(String oldStatus) {
+		this.oldStatus = oldStatus;
+	}
+
+	public String getNewStatus() {
+		return newStatus;
+	}
+
+	public void setNewStatus(String newStatus) {
+		this.newStatus = newStatus;
+	}
+
+	public BigDecimal getAmount() {
+		return amount;
+	}
+
+	public void setAmount(BigDecimal amount) {
+		this.amount = amount;
+	}
+
+	public String getTeacherFeedback() {
+		return teacherFeedback;
+	}
+
+	public void setTeacherFeedback(String teacherFeedback) {
+		this.teacherFeedback = teacherFeedback;
+	}
+
+	public String getActionNote() {
+		return actionNote;
+	}
+
+	public void setActionNote(String actionNote) {
+		this.actionNote = actionNote;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+    
+    
+}package com.management.student_center.entity;
+
+import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import org.springframework.data.annotation.CreatedDate; // Import này
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+@Entity
+@Table(name = "teachersubjects")
+@EntityListeners(AuditingEntityListener.class)
+public class TeacherSubject {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+
+	// Quan hệ với Teacher
+	@ManyToOne
+	@JoinColumn(name = "teacherId")
+	private Teacher teacher;
+
+	// Quan hệ với Subject
+	@ManyToOne
+	@JoinColumn(name = "subjectId")
+	private Subject subject;
+
+	// Lương theo giờ
+	private BigDecimal salaryRate;
+
+	@CreatedDate
+	@Column(name = "createdAt", nullable = false, updatable = false)
+	private LocalDateTime createdAt;
+
+	// Constructor mặc định
+	public TeacherSubject() {
+	}
+
+	// Constructor đầy đủ
+	public TeacherSubject(Long id, Teacher teacher, Subject subject, BigDecimal salaryRate) {
+		this.id = id;
+		this.teacher = teacher;
+		this.subject = subject;
+		this.salaryRate = salaryRate;
+	}
+
+	// Getter & Setter
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public Teacher getTeacher() {
+		return teacher;
+	}
+
+	public void setTeacher(Teacher teacher) {
+		this.teacher = teacher;
+	}
+
+	public Subject getSubject() {
+		return subject;
+	}
+
+	public void setSubject(Subject subject) {
+		this.subject = subject;
+	}
+
+	public BigDecimal getSalaryRate() {
+		return salaryRate;
+	}
+
+	public void setSalaryRate(BigDecimal salaryRate) {
+		this.salaryRate = salaryRate;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+}
+package com.management.student_center.entity;
+
+import java.time.LocalDateTime;
+
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "users")
+public class User {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+
+	private String email;
+
+	@JsonIgnore
+	private String password;
+
+	@Column(name = "fullName")
+	private String fullName;
+
+	@Column(name = "phoneNumber")
+	private String phoneNumber;
+
+	private Boolean gender;
+
+	private String image;
+
+	@Column(name = "roleId")
+	private String roleId;
+
+	@Column(name = "status", nullable = false)
+	private Boolean status = true;
+
+	@CreationTimestamp
+	@Column(updatable = false)
+	private LocalDateTime createdAt;
+
+	@UpdateTimestamp
+	private LocalDateTime updatedAt;
+
+	@Column(name = "password_updated_at")
+	private LocalDateTime passwordUpdatedAt;
+
+	@JsonIgnore
+	@OneToOne(mappedBy = "userInfo", cascade = CascadeType.ALL)
+	private Teacher teacherInfo;
+
+	@JsonIgnore
+	@OneToOne(mappedBy = "userInfo", cascade = CascadeType.ALL)
+	private Student studentInfo;
+
+	// Constructor mặc định
+	public User() {
+	}
+
+	// Constructor đầy đủ
+	public User(Long id, String email, String password, String fullName, String phoneNumber, Boolean gender,
+			String image, String roleId, Teacher teacherInfo, Student studentInfo) {
+		this.id = id;
+		this.email = email;
+		this.password = password;
+		this.fullName = fullName;
+		this.phoneNumber = phoneNumber;
+		this.gender = gender;
+		this.image = image;
+		this.roleId = roleId;
+		this.teacherInfo = teacherInfo;
+		this.studentInfo = studentInfo;
+	}
+
+	// Getter và Setter
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public String getEmail() {
+		return email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
+	}
+
+	public String getPassword() {
+		return password;
+	}
+
+	public void setPassword(String password) {
+		this.password = password;
+	}
+
+	public String getFullName() {
+		return fullName;
+	}
+
+	public void setFullName(String fullName) {
+		this.fullName = fullName;
+	}
+
+	public String getPhoneNumber() {
+		return phoneNumber;
+	}
+
+	public void setPhoneNumber(String phoneNumber) {
+		this.phoneNumber = phoneNumber;
+	}
+
+	public Boolean getGender() {
+		return gender;
+	}
+
+	public void setGender(Boolean gender) {
+		this.gender = gender;
+	}
+
+	public String getImage() {
+		return image;
+	}
+
+	public void setImage(String image) {
+		this.image = image;
+	}
+
+	public String getRoleId() {
+		return roleId;
+	}
+
+	public void setRoleId(String roleId) {
+		this.roleId = roleId;
+	}
+
+	public Boolean getStatus() {
+		return status;
+	}
+
+	public void setStatus(Boolean status) {
+		this.status = status;
+	}
+
+	public Teacher getTeacherInfo() {
+		return teacherInfo;
+	}
+
+	public void setTeacherInfo(Teacher teacherInfo) {
+		this.teacherInfo = teacherInfo;
+	}
+
+	public Student getStudentInfo() {
+		return studentInfo;
+	}
+
+	public void setStudentInfo(Student studentInfo) {
+		this.studentInfo = studentInfo;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+	public LocalDateTime getPasswordUpdatedAt() {
+		return passwordUpdatedAt;
+	}
+
+	public void setPasswordUpdatedAt(LocalDateTime passwordUpdatedAt) {
+		this.passwordUpdatedAt = passwordUpdatedAt;
+	}
+
+}
+

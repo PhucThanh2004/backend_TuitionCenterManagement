@@ -1,0 +1,472 @@
+package com.management.student_center.service.tuition;
+
+import com.management.student_center.dto.tuition.TuitionDetailResult;
+import com.management.student_center.entity.*;
+import com.management.student_center.enums.BillingType;
+import com.management.student_center.enums.PaymentPlanType;
+import com.management.student_center.repository.AttendanceStudentRepository;
+import com.management.student_center.repository.StudentTuitionDetailRepository;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.YearMonth;
+import java.util.List;
+
+@Service
+public class TuitionCalculationService {
+
+	private final AttendanceStudentRepository attendanceRepository;
+	private final StudentTuitionDetailRepository detailRepository;
+
+	public TuitionCalculationService(AttendanceStudentRepository attendanceRepository,
+			StudentTuitionDetailRepository detailRepository) {
+		this.attendanceRepository = attendanceRepository;
+		this.detailRepository = detailRepository;
+	}
+
+	public TuitionDetailResult calculate(Student student, StudentSubject ss, int month, int year) {
+
+		BillingType billingType = ss.getBillingTypeSnapshot();
+
+		if (billingType == BillingType.PER_HOUR) {
+			return calculatePerHour(student, ss, month, year);
+		}
+
+		return calculatePerSubject(student, ss);
+	}
+
+	private TuitionDetailResult calculatePerHour(Student student, StudentSubject ss, int month, int year) {
+
+		YearMonth ym = YearMonth.of(year, month);
+
+		List<AttendanceStudent> attendances = attendanceRepository.findValidAttendanceForTuition(student.getId(),
+				ss.getSubject().getId(), ym.atDay(1), ym.atEndOfMonth());
+
+		double totalHours = 0;
+
+		for (AttendanceStudent attendance : attendances) {
+
+			Session session = attendance.getSession();
+			if (session.getStartTime() == null || session.getEndTime() == null) {
+				continue;
+			}
+
+			long minutes = java.time.Duration.between(session.getStartTime(), session.getEndTime()).toMinutes();
+
+			totalHours += (double) minutes / 60.0;
+		}
+
+		BigDecimal money = BigDecimal.valueOf(totalHours).multiply(ss.getFeeAmountSnapshot()).setScale(0,
+				RoundingMode.HALF_UP);
+
+		TuitionDetailResult result = new TuitionDetailResult();
+
+		result.setAmount(money);
+		result.setHours((float) totalHours);
+		result.setSessions(attendances.size());
+
+		return result;
+	}
+
+	private TuitionDetailResult calculatePerSubject(Student student, StudentSubject ss) {
+
+		TuitionDetailResult result = new TuitionDetailResult();
+
+		if (ss.getFeeAmountSnapshot() == null) {
+			throw new IllegalStateException("Fee snapshot missing. StudentSubject id=" + ss.getId());
+		}
+
+		if (ss.getPaymentPlanTypeSnapshot() == PaymentPlanType.ONE_TIME) {
+
+			long count = detailRepository.countOneTimeInvoices(student.getId(), ss.getSubject().getId());
+
+			if (count > 0) {
+				result.setSkip(true);
+				return result;
+			}
+
+			result.setAmount(ss.getFeeAmountSnapshot());
+
+			return result;
+		}
+
+		if (ss.getInstallmentCountSnapshot() == null || ss.getInstallmentCountSnapshot() <= 0) {
+
+			throw new IllegalStateException("Installment count invalid. StudentSubject id=" + ss.getId());
+		}
+
+		long generated = detailRepository.countGeneratedInstallments(student.getId(), ss.getSubject().getId());
+
+		int totalInstallments = ss.getInstallmentCountSnapshot();
+
+		BigDecimal fee = ss.getFeeAmountSnapshot();
+
+		if (generated >= totalInstallments) {
+			result.setSkip(true);
+			return result;
+		}
+
+		BigDecimal baseAmount = fee.divide(BigDecimal.valueOf(totalInstallments), 0, RoundingMode.DOWN);
+
+		BigDecimal installmentAmount = baseAmount;
+
+		if (generated == totalInstallments - 1) {
+
+			BigDecimal paidBefore = baseAmount.multiply(BigDecimal.valueOf(totalInstallments - 1));
+
+			installmentAmount = fee.subtract(paidBefore);
+		}
+
+		result.setAmount(installmentAmount);
+		result.setInstallmentNo((int) generated + 1);
+
+		return result;
+	}
+}package com.management.student_center.service.tuition;
+
+import com.management.student_center.dto.tuition.TuitionDetailResult;
+import com.management.student_center.entity.*;
+import com.management.student_center.enums.StudentTuitionStatus;
+import com.management.student_center.repository.StudentRepository;
+import com.management.student_center.repository.StudentTuitionRepository;
+import jakarta.transaction.Transactional;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+
+@Service
+public class TuitionInvoiceGeneratorService {
+
+	private final StudentRepository studentRepository;
+	private final StudentTuitionRepository tuitionRepository;
+	private final TuitionCalculationService calculationService;
+
+	public TuitionInvoiceGeneratorService(StudentRepository studentRepository,
+			StudentTuitionRepository tuitionRepository, TuitionCalculationService calculationService) {
+		this.studentRepository = studentRepository;
+		this.tuitionRepository = tuitionRepository;
+		this.calculationService = calculationService;
+	}
+
+	@Transactional
+	public List<StudentTuition> generate(int month, int year) {
+
+		List<StudentTuition> result = new ArrayList<>();
+
+		List<Student> students = studentRepository.findAll();
+
+		for (Student student : students) {
+			StudentTuition existing = tuitionRepository.findByStudentIdAndMonthAndYear(student.getId(), month, year)
+					.orElse(null);
+
+			if (existing != null) {
+				continue;
+			}
+
+			StudentTuition tuition = new StudentTuition();
+
+			tuition.setStudent(student);
+			tuition.setMonth(month);
+			tuition.setYear(year);
+			tuition.setStatus(StudentTuitionStatus.WAITING_PAYMENT);
+
+			List<StudentTuitionDetail> details = new ArrayList<>();
+
+			BigDecimal total = BigDecimal.ZERO;
+
+			for (StudentSubject ss : student.getStudentSubjects()) {
+
+			    if (ss.getDeletedAt() != null) {
+			        continue;
+			    }
+
+				TuitionDetailResult calc = calculationService.calculate(student, ss, month, year);
+
+				if (calc.isSkip()) {
+					continue;
+				}
+
+				if (calc.getAmount() == null || calc.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+					continue;
+				}
+
+				StudentTuitionDetail detail = new StudentTuitionDetail();
+
+				detail.setStudentTuition(tuition);
+
+				detail.setSubject(ss.getSubject());
+
+				detail.setBillingType(ss.getBillingTypeSnapshot());
+
+				detail.setPaymentPlanType(ss.getPaymentPlanTypeSnapshot());
+
+				detail.setInstallmentNo(calc.getInstallmentNo());
+
+				detail.setTotalInstallments(ss.getInstallmentCountSnapshot());
+
+				detail.setAttendedSessions(calc.getSessions() == null ? 0 : calc.getSessions());
+
+				detail.setTotalHours(calc.getHours() == null ? 0 : calc.getHours());
+
+				detail.setTotalMoney(calc.getAmount());
+
+				details.add(detail);
+
+				total = total.add(calc.getAmount());
+			}
+
+			if (details.isEmpty()) {
+				continue;
+			}
+
+			tuition.setDetails(details);
+			tuition.setTotalAmount(total);
+			tuition.setPaidAmount(BigDecimal.ZERO);
+
+			result.add(tuitionRepository.save(tuition));
+		}
+
+		return result;
+	}
+}package com.management.student_center.service.tuition;
+
+import com.management.student_center.entity.StudentPaymentTransaction;
+import com.management.student_center.entity.StudentTuition;
+import com.management.student_center.repository.StudentPaymentTransactionRepository;
+import com.management.student_center.repository.StudentTuitionRepository;
+import jakarta.transaction.Transactional;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+@Service
+public class TuitionPaymentService {
+
+	private final StudentTuitionRepository tuitionRepository;
+	private final StudentPaymentTransactionRepository paymentRepository;
+	private final TuitionStatusService statusService;
+
+	public TuitionPaymentService(StudentTuitionRepository tuitionRepository,
+			StudentPaymentTransactionRepository paymentRepository, TuitionStatusService statusService) {
+		this.tuitionRepository = tuitionRepository;
+		this.paymentRepository = paymentRepository;
+		this.statusService = statusService;
+	}
+
+	@Transactional
+	public StudentTuition pay(Long tuitionId, BigDecimal amount, String paymentMethod, String note) {
+
+		StudentTuition tuition = tuitionRepository.findById(tuitionId)
+				.orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn"));
+
+		StudentPaymentTransaction tx = new StudentPaymentTransaction();
+
+		tx.setStudentTuition(tuition);
+		tx.setAmount(amount);
+		tx.setPaymentMethod(paymentMethod);
+		tx.setNote(note);
+		tx.setPaymentDate(LocalDateTime.now());
+
+		paymentRepository.save(tx);
+
+		BigDecimal paid = tuition.getPaidAmount() == null ? BigDecimal.ZERO : tuition.getPaidAmount();
+
+		tuition.setPaidAmount(paid.add(amount));
+
+		statusService.refreshStatus(tuition);
+
+		return tuitionRepository.save(tuition);
+	}
+}package com.management.student_center.service.tuition;
+
+import com.management.student_center.dto.tuition.TuitionCalculationDTO;
+import com.management.student_center.entity.StudentTuition;
+import com.management.student_center.enums.StudentTuitionStatus;
+import com.management.student_center.repository.StudentTuitionRepository;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Service
+public class TuitionQueryService {
+
+	private final StudentTuitionRepository tuitionRepository;
+
+	public TuitionQueryService(StudentTuitionRepository tuitionRepository) {
+		this.tuitionRepository = tuitionRepository;
+	}
+
+	public List<TuitionCalculationDTO> getTuitionsWithFilter(int month, int year, String name, String grade,
+			StudentTuitionStatus status) {
+
+		List<StudentTuition> entities = tuitionRepository.searchTuitions(month, year, name, grade, status);
+
+		List<TuitionCalculationDTO> result = new ArrayList<>();
+
+		for (StudentTuition entity : entities) {
+			result.add(toDTO(entity));
+		}
+
+		return result;
+	}
+
+	public StudentTuition getTuitionDetail(Long studentId, int month, int year) {
+
+		return tuitionRepository.findByStudentIdAndMonthAndYear(studentId, month, year).orElse(null);
+	}
+
+	private TuitionCalculationDTO toDTO(StudentTuition entity) {
+
+		TuitionCalculationDTO dto = new TuitionCalculationDTO();
+
+		dto.setTuitionId(entity.getId());
+
+		dto.setStudentId(entity.getStudent().getId());
+
+		dto.setFullName(entity.getStudent().getUserInfo().getFullName());
+
+		dto.setPhoneNumber(entity.getStudent().getUserInfo().getPhoneNumber());
+
+		dto.setGrade(entity.getStudent().getGrade());
+
+		dto.setTotalAmount(entity.getTotalAmount());
+
+		dto.setPaidAmount(entity.getPaidAmount());
+
+		dto.setRemainingAmount(entity.getRemainingAmount());
+
+		dto.setStatus(entity.getStatus().name());
+
+		return dto;
+	}
+}package com.management.student_center.service.tuition;
+
+import com.management.student_center.entity.StudentTuition;
+import com.management.student_center.enums.StudentTuitionStatus;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+
+@Service
+public class TuitionStatusService {
+
+	public StudentTuitionStatus calculateStatus(BigDecimal totalAmount, BigDecimal paidAmount) {
+
+		if (totalAmount == null) {
+			totalAmount = BigDecimal.ZERO;
+		}
+
+		if (paidAmount == null) {
+			paidAmount = BigDecimal.ZERO;
+		}
+
+		if (paidAmount.compareTo(BigDecimal.ZERO) <= 0) {
+			return StudentTuitionStatus.WAITING_PAYMENT;
+		}
+
+		if (paidAmount.compareTo(totalAmount) >= 0) {
+			return StudentTuitionStatus.PAID;
+		}
+
+		return StudentTuitionStatus.PARTIAL_PAID;
+	}
+
+	public void refreshStatus(StudentTuition tuition) {
+
+		tuition.setStatus(calculateStatus(tuition.getTotalAmount(), tuition.getPaidAmount()));
+	}
+}package com.management.student_center.service.tuition;
+
+import com.management.student_center.dto.tuition.TuitionDetailUpdateRequest;
+import com.management.student_center.entity.StudentTuition;
+import com.management.student_center.entity.StudentTuitionDetail;
+import com.management.student_center.enums.StudentTuitionStatus;
+import com.management.student_center.repository.StudentTuitionDetailRepository;
+import com.management.student_center.repository.StudentTuitionRepository;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
+@Service
+public class TuitionUpdateService {
+
+	private final StudentTuitionDetailRepository detailRepository;
+
+	private final StudentTuitionRepository tuitionRepository;
+
+	private final TuitionStatusService tuitionStatusService;
+
+	public TuitionUpdateService(StudentTuitionDetailRepository detailRepository,
+			StudentTuitionRepository tuitionRepository, TuitionStatusService tuitionStatusService) {
+		this.detailRepository = detailRepository;
+		this.tuitionRepository = tuitionRepository;
+		this.tuitionStatusService = tuitionStatusService;
+	}
+
+	@Transactional
+	public StudentTuition updateTuitionDetail(TuitionDetailUpdateRequest request) {
+
+		StudentTuitionDetail detail = detailRepository.findById(request.getDetailId())
+				.orElseThrow(() -> new RuntimeException("Không tìm thấy chi tiết học phí"));
+
+		if (request.getAttendedSessions() != null) {
+
+			int oldSessions = detail.getAttendedSessions();
+
+			float oldHours = detail.getTotalHours();
+
+			int newSessions = request.getAttendedSessions();
+
+			float hoursPerSession = 0f;
+
+			if (oldSessions > 0) {
+				hoursPerSession = oldHours / oldSessions;
+			}
+
+			float newHours = hoursPerSession * newSessions;
+
+			detail.setAttendedSessions(newSessions);
+
+			detail.setTotalHours(newHours);
+
+			BigDecimal unitPrice = detail.getUnitPrice() != null ? detail.getUnitPrice() : BigDecimal.ZERO;
+
+			BigDecimal amount = BigDecimal.valueOf(newHours).multiply(unitPrice).setScale(0, RoundingMode.HALF_UP);
+
+			detail.setTotalMoney(amount);
+		}
+
+		if (request.getTotalMoney() != null) {
+
+			detail.setTotalMoney(request.getTotalMoney());
+		}
+
+		if (request.getNote() != null) {
+
+			detail.setNote(request.getNote());
+		}
+
+		detailRepository.save(detail);
+
+		StudentTuition tuition = detail.getStudentTuition();
+
+		BigDecimal total = tuition.getDetails().stream().map(StudentTuitionDetail::getTotalMoney)
+				.reduce(BigDecimal.ZERO, BigDecimal::add);
+
+		tuition.setTotalAmount(total);
+
+		StudentTuitionStatus status = tuitionStatusService.calculateStatus(total, tuition.getPaidAmount());
+
+		tuition.setStatus(status);
+
+		return tuitionRepository.save(tuition);
+	}
+}
